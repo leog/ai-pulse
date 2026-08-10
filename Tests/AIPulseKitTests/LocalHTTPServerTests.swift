@@ -12,7 +12,9 @@ final class LocalHTTPServerTests: XCTestCase {
 
     @MainActor
     override func setUp() async throws {
-        try await super.setUp()
+        // No super.setUp() call: awaiting the nonisolated async variant from
+        // @MainActor sends non-Sendable `self` across executors, which newer
+        // Swift 6 toolchains reject; XCTest's default implementation is empty.
         let store = AgentStore()
         self.store = store
         server = LocalHTTPServer(
