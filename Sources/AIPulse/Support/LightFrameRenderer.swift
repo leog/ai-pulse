@@ -37,8 +37,10 @@ enum LightFrameRenderer {
               title: "Off", note: "Dark when nothing is connected"),
     ]
 
-    /// GitHub-dark canvas; the lit strip reads as a hardware product shot
-    /// on both light and dark pages.
+    /// Captioned (social) tiles get a dark canvas: sharing platforms
+    /// flatten or discard alpha unpredictably, and the white captions need
+    /// a guaranteed dark ground. README tiles stay transparent (APNG) so
+    /// they sit on GitHub's own theme background.
     private static let canvas = Color(red: 0.051, green: 0.055, blue: 0.09)
 
     static func runIfRequested() -> Bool {
@@ -93,8 +95,8 @@ enum LightFrameRenderer {
         size: CGSize
     ) -> some View {
         ZStack {
-            canvas
             if let caption {
+                canvas
                 VStack(spacing: 18) {
                     LightStripView(signal: signal, frozenTime: time)
                         .scaleEffect(2)

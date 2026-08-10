@@ -1,7 +1,7 @@
 # AI Pulse
 
 <p align="center">
-  <img src="docs/pulse-demo.gif" width="190" alt="AI Pulse: a strip of eight LEDs cycling through its agent-status animations" />
+  <img src="docs/pulse-demo.png" width="190" alt="AI Pulse: a strip of eight LEDs cycling through its agent-status animations" />
 </p>
 
 An ambient macOS light strip for AI coding agents, inspired by the
@@ -12,13 +12,13 @@ waiting for you, finished, or broken:
 
 <table align="center">
   <tr>
-    <td align="center"><img src="docs/states/working.gif" width="190" alt="Working: cyan comet animation" /><br /><sub><b>Working</b> — a cyan comet streaks while an agent runs</sub></td>
-    <td align="center"><img src="docs/states/attention.gif" width="190" alt="Needs you: breathing orange animation" /><br /><sub><b>Needs you</b> — breathes orange when an agent waits for input or approval</sub></td>
-    <td align="center"><img src="docs/states/failure.gif" width="190" alt="Failed: double-blinking red animation" /><br /><sub><b>Failed</b> — double-blinks red when a session breaks</sub></td>
+    <td align="center"><img src="docs/states/working.png" width="190" alt="Working: cyan comet animation" /><br /><sub><b>Working</b> — a cyan comet streaks while an agent runs</sub></td>
+    <td align="center"><img src="docs/states/attention.png" width="190" alt="Needs you: breathing orange animation" /><br /><sub><b>Needs you</b> — breathes orange when an agent waits for input or approval</sub></td>
+    <td align="center"><img src="docs/states/failure.png" width="190" alt="Failed: double-blinking red animation" /><br /><sub><b>Failed</b> — double-blinks red when a session breaks</sub></td>
   </tr>
   <tr>
     <td align="center"><img src="docs/states/success.png" width="190" alt="Finished: solid green LEDs" /><br /><sub><b>Finished</b> — all eight settle to solid green</sub></td>
-    <td align="center"><img src="docs/states/idle.gif" width="190" alt="Idle: slow blue-teal aurora animation" /><br /><sub><b>Idle</b> — a slow aurora drifts while sessions sit quiet</sub></td>
+    <td align="center"><img src="docs/states/idle.png" width="190" alt="Idle: slow blue-teal aurora animation" /><br /><sub><b>Idle</b> — a slow aurora drifts while sessions sit quiet</sub></td>
     <td align="center"><img src="docs/states/off.png" width="190" alt="Off: dark LEDs" /><br /><sub><b>Off</b> — dark when nothing is connected</sub></td>
   </tr>
 </table>
