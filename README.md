@@ -1,5 +1,9 @@
 # AI Pulse
 
+<p align="center">
+  <img src="docs/pulse-demo.gif" width="304" alt="AI Pulse: a floating pill of eight LEDs beside the macOS Dock, animating agent status" />
+</p>
+
 An ambient macOS light strip for AI coding agents, inspired by the
 SidePulse hardware gadget — but as an app. A slim strip of eight virtual
 LEDs floats in the unused space beside the Dock and shows, with a single
@@ -112,8 +116,10 @@ Milestones 1–3 are complete:
 - **M3** — `AgentReducer` event normalization (versioning, ID validation,
   sequence/timestamp ordering, duplicate rejection, safe-action mapping),
   centralized `StalenessPolicy` (working agents stale after a configurable
-  silence; completed agents expire after a configurable delay; waiting,
-  approval, and failed states never expire on timers), and persistence to
+  silence, then demoted to disconnected after a longer one; agents whose
+  backing process has exited are demoted within one sweep via a PID
+  liveness check; completed agents expire after a configurable delay;
+  waiting, approval, and failed states never expire on timers), and persistence to
   `~/Library/Application Support/AIPulse/agents.json` with restart restore:
   unresolved attention states come back as-is, live-only states come back
   as `disconnected` until their source reports again.
@@ -161,3 +167,15 @@ project hooks the first time it loads them.
 
 AI Pulse displays status sent by local agent integrations. It does not read
 prompts, terminal contents, editor contents, or application windows.
+
+## Contributing
+
+Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md) for the
+project's design principles, testing expectations, and how to add a new
+agent integration. [docs/DEBUGGING.md](docs/DEBUGGING.md) covers the
+debugging surface: environment variables, headless snapshots, log
+streaming, on-disk state, and fixes for the common failure modes.
+
+## License
+
+[MIT](LICENSE)
