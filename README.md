@@ -5,7 +5,7 @@
 </p>
 
 An ambient macOS light strip for AI coding agents, inspired by the
-SidePulse hardware gadget — but as an app. A slim strip of eight virtual
+[SidePulse](https://sidepulse.io/) hardware gadget — but as an app. A slim strip of eight virtual
 LEDs floats in the unused space beside the Dock and shows, with a single
 aggregate signal and no per-model distinction, whether anything is running,
 waiting for you, finished, or broken:
