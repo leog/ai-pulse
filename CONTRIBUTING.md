@@ -90,6 +90,14 @@ CLI, including the Claude Code hook entry point.
   debugging affordance (env var, flag, snapshot), document it in
   docs/DEBUGGING.md.
 
+## Releases
+
+Merging a PR into `main` automatically builds the app bundle and publishes
+a GitHub Release. The semver bump is **patch** unless the PR is labeled
+`release:minor` or `release:major` — apply the label before merging when
+your change warrants it. Maintainers can also cut a release manually from
+the Actions tab (Release → Run workflow).
+
 ## Reporting bugs
 
 Open an issue with: macOS version, how you launched the app (signed bundle

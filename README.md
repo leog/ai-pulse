@@ -26,7 +26,20 @@ Dock accessories. It is a Dock-adjacent, borderless, nonactivating `NSPanel`
 positioned from public screen geometry (`NSScreen.frame` vs `visibleFrame`).
 No private APIs, no Accessibility/Screen Recording permissions, no injection.
 
-## Requirements
+## Install
+
+Grab `AI-Pulse-<version>.zip` from the
+[latest release](https://github.com/leog/ai-pulse/releases/latest), unzip,
+move `AI Pulse.app` to `/Applications`, and launch. Releases are not yet
+notarized, so on first launch right-click the app → **Open** (on macOS 15+,
+also allow it under **System Settings → Privacy & Security → Open Anyway**).
+The `aipulse` CLI ships inside the bundle at
+`AI Pulse.app/Contents/Helpers/aipulse`.
+
+Releases are cut automatically when a PR merges: patch by default, minor or
+major when the PR carries a `release:minor` / `release:major` label.
+
+## Requirements (building from source)
 
 - macOS 14+
 - Xcode 16+ / Swift 6 toolchain

@@ -10,7 +10,7 @@ cd "$(dirname "$0")/.."
 
 CONFIG="${1:-release}"
 APP="dist/AI Pulse.app"
-VERSION="0.1.0"
+VERSION="${AIPULSE_VERSION:-0.1.0}"
 
 swift build -c "$CONFIG"
 
@@ -23,7 +23,7 @@ cp ".build/$CONFIG/AIPulseApp" "$APP/Contents/MacOS/AIPulse"
 # on case-insensitive filesystems and the CLI would clobber the app binary.
 cp ".build/$CONFIG/aipulse" "$APP/Contents/Helpers/aipulse"
 
-cat > "$APP/Contents/Info.plist" <<'PLIST'
+cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
@@ -39,9 +39,9 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.1.0</string>
+    <string>$VERSION</string>
     <key>CFBundleVersion</key>
-    <string>1</string>
+    <string>$VERSION</string>
     <key>LSMinimumSystemVersion</key>
     <string>14.0</string>
     <key>LSUIElement</key>
@@ -52,7 +52,12 @@ cat > "$APP/Contents/Info.plist" <<'PLIST'
 </plist>
 PLIST
 
-IDENTITY="$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/{print $2; exit}')"
+# Prefer a distribution identity when one exists (required for notarized
+# releases); fall back to a development one, then ad-hoc.
+IDENTITY="$(security find-identity -v -p codesigning | awk -F'"' '/Developer ID Application/{print $2; exit}')"
+if [ -z "$IDENTITY" ]; then
+    IDENTITY="$(security find-identity -v -p codesigning | awk -F'"' '/Apple Development/{print $2; exit}')"
+fi
 if [ -n "$IDENTITY" ]; then
     echo "Signing with: $IDENTITY"
     codesign --force --sign "$IDENTITY" --identifier me.leog.aipulse.cli "$APP/Contents/Helpers/aipulse"
