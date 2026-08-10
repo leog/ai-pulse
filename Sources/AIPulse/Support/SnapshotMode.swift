@@ -36,6 +36,38 @@ enum SnapshotMode {
                 to: directory.appendingPathComponent("hovercard-dark.png")
             )
         }
+        snapshot(
+            SettingsView(
+                settings: PlacementSettings(),
+                behavior: BehaviorSettings(),
+                appearance: appearanceSettings,
+                server: ServerController(store: store),
+                coordinator: coordinator
+            ).frame(height: 720),
+            appearance: "aqua",
+            to: directory.appendingPathComponent("settings-light.png")
+        )
+        // Exercise the real presentation path too — a view that renders in
+        // isolation can still come up empty inside its window controller.
+        let settingsController = SettingsWindowController(
+            settings: PlacementSettings(),
+            behavior: BehaviorSettings(),
+            appearance: appearanceSettings,
+            server: ServerController(store: store),
+            coordinator: coordinator
+        )
+        coordinator.settingsController = settingsController
+        settingsController.show()
+        RunLoop.main.run(until: Date().addingTimeInterval(0.6))
+        if let window = NSApp.windows.first(where: { $0.title == "AI Pulse Settings" }),
+           let content = window.contentView,
+           let rep = content.bitmapImageRepForCachingDisplay(in: content.bounds) {
+            content.cacheDisplay(in: content.bounds, to: rep)
+            if let data = rep.representation(using: .png, properties: [:]) {
+                try? data.write(to: directory.appendingPathComponent("settings-window.png"))
+            }
+            window.orderOut(nil)
+        }
         return true
     }
 

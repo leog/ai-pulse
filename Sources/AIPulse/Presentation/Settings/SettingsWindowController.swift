@@ -175,7 +175,10 @@ struct SettingsView: View {
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420)
+        // Both dimensions must be pinned: a grouped Form is a scroll view
+        // with no intrinsic height, so an unconstrained NSHostingController
+        // collapses the window to a bare title bar.
+        .frame(width: 420, height: 600)
         .onAppear {
             displays = NSScreen.screens.map { ($0.displayIDString, $0.localizedName) }
             portText = String(server.port)
