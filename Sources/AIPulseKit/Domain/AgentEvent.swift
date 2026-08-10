@@ -54,6 +54,8 @@ public struct AgentEventPayload: Codable, Sendable, Equatable {
     public var occurredAt: Date
     public var expiresAt: Date?
     public var sequence: Int?
+    /// PID of the process backing the agent, for local liveness checks.
+    public var pid: Int?
 
     public init(
         version: Int = 1,
@@ -64,7 +66,8 @@ public struct AgentEventPayload: Codable, Sendable, Equatable {
         action: ActionDescriptor? = nil,
         occurredAt: Date = Date(),
         expiresAt: Date? = nil,
-        sequence: Int? = nil
+        sequence: Int? = nil,
+        pid: Int? = nil
     ) {
         self.version = version
         self.agent = agent
@@ -75,5 +78,6 @@ public struct AgentEventPayload: Codable, Sendable, Equatable {
         self.occurredAt = occurredAt
         self.expiresAt = expiresAt
         self.sequence = sequence
+        self.pid = pid
     }
 }

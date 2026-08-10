@@ -70,6 +70,11 @@ public enum AgentReducer {
         // Project paths are display/reveal metadata only; nothing ever
         // interprets them as commands.
         agent.projectPath = event.project?.path.map { cap($0, maxPathLength) }
+        // PIDs 0/1 (kernel, launchd) can never back an agent; a bogus or
+        // missing pid keeps whatever we knew rather than claiming liveness.
+        if let pid = event.pid {
+            agent.sourceProcessID = (pid > 1 && pid <= Int(Int32.max)) ? Int32(pid) : agent.sourceProcessID
+        }
         agent.lastUpdatedAt = event.occurredAt
         agent.stateChangedAt = event.occurredAt
         agent.expiresAt = event.expiresAt

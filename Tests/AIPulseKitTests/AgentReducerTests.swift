@@ -145,4 +145,25 @@ final class AgentReducerTests: XCTestCase {
         XCTAssertEqual(agent.state, .working)
         XCTAssertFalse(agent.isAcknowledged)
     }
+
+    // MARK: - Source PID
+
+    func testPIDAppliedAndKeptWhenLaterEventOmitsIt() {
+        var event = payload(sequence: 1)
+        event.pid = 4321
+        let first = applied(AgentReducer.reduce(existing: nil, event: event))!
+        XCTAssertEqual(first.sourceProcessID, 4321)
+
+        let update = applied(AgentReducer.reduce(existing: first, event: payload(sequence: 2)))!
+        XCTAssertEqual(update.sourceProcessID, 4321, "omitted pid keeps the known one")
+    }
+
+    func testBogusPIDIgnored() {
+        for bogus in [0, 1, -7, Int(Int32.max) + 1] {
+            var event = payload()
+            event.pid = bogus
+            let agent = applied(AgentReducer.reduce(existing: nil, event: event))!
+            XCTAssertNil(agent.sourceProcessID, "pid \(bogus)")
+        }
+    }
 }

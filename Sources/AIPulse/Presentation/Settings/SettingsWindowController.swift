@@ -75,6 +75,14 @@ struct SettingsView: View {
         )
     }
 
+    /// -1 encodes "never disconnect" for the silent-working picker.
+    private var disconnectDelaySelection: Binding<Double> {
+        Binding(
+            get: { behavior.staleness.workingDisconnectAfter ?? -1 },
+            set: { behavior.staleness.workingDisconnectAfter = $0 < 0 ? nil : $0 }
+        )
+    }
+
     private var displaySelection: Binding<String> {
         Binding(
             get: { settings.preferences.preferredDisplayID ?? "automatic" },
@@ -138,7 +146,13 @@ struct SettingsView: View {
                     Text("10 minutes").tag(600.0)
                     Text("20 minutes").tag(1200.0)
                 }
-                Text("Waiting, approval, and failed states stay visible until resolved or acknowledged.")
+                Picker("Disconnect silent working agents after", selection: disconnectDelaySelection) {
+                    Text("15 minutes").tag(900.0)
+                    Text("30 minutes").tag(1800.0)
+                    Text("1 hour").tag(3600.0)
+                    Text("Never").tag(-1.0)
+                }
+                Text("A working agent whose process has exited is disconnected immediately; silence alone disconnects it after this delay. Waiting, approval, and failed states stay visible until resolved or acknowledged.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }

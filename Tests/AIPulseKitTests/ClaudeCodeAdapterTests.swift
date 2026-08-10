@@ -160,4 +160,34 @@ final class ClaudeCodeAdapterTests: XCTestCase {
         fire(input("SessionEnd"))
         XCTAssertNil(store.agent(id: id))
     }
+
+    // MARK: - Source PID
+
+    func testSourceProcessIDPublishedWhenKnown() {
+        let mapped = ClaudeCodeAdapter.map(input("PreToolUse", toolName: "Bash"), sourceProcessID: 4321, now: now)
+        XCTAssertEqual(published(mapped)?.pid, 4321)
+
+        let without = ClaudeCodeAdapter.map(input("PreToolUse", toolName: "Bash"), now: now)
+        XCTAssertNil(published(without)?.pid)
+    }
+
+    // MARK: - Ancestry resolution
+
+    func testStableAncestorSkipsShellWrappers() {
+        // hook (900) ← zsh wrapper (800) ← claude (700) ← Terminal (600)
+        let table: [pid_t: ProcessAncestry.Info] = [
+            900: .init(parentID: 800, command: "aipulse"),
+            800: .init(parentID: 700, command: "zsh"),
+            700: .init(parentID: 600, command: "claude"),
+        ]
+        XCTAssertEqual(ProcessAncestry.stableAncestor(from: 800, lookup: { table[$0] }), 700)
+        XCTAssertEqual(ProcessAncestry.stableAncestor(from: 700, lookup: { table[$0] }), 700)
+    }
+
+    func testStableAncestorGivesUpRatherThanGuessing() {
+        // Reparented to launchd, or a lookup dead-end: no PID at all.
+        let orphaned: [pid_t: ProcessAncestry.Info] = [800: .init(parentID: 1, command: "zsh")]
+        XCTAssertNil(ProcessAncestry.stableAncestor(from: 800, lookup: { orphaned[$0] }))
+        XCTAssertNil(ProcessAncestry.stableAncestor(from: 800, lookup: { _ in nil }))
+    }
 }

@@ -114,8 +114,16 @@ struct AIPulseCLI {
     /// clutter a Claude Code session, even when AI Pulse isn't running.
     private static func claudeHookCommand() async {
         let data = FileHandle.standardInput.readDataToEndOfFile()
+        // The Claude Code session process is our nearest non-shell ancestor
+        // (hook commands may run under transient `sh -c` wrappers). Its
+        // death is what "this agent is gone" means.
+        let sessionPID = ProcessAncestry.stableAncestor(from: getppid())
         guard let input = try? JSONDecoder().decode(ClaudeCodeAdapter.HookInput.self, from: data),
-              let mapped = ClaudeCodeAdapter.map(input, environment: ProcessInfo.processInfo.environment)
+              let mapped = ClaudeCodeAdapter.map(
+                  input,
+                  environment: ProcessInfo.processInfo.environment,
+                  sourceProcessID: sessionPID
+              )
         else { return }
         guard let flags = try? Flags([]),
               let client = try? client(from: flags, needsToken: true) else { return }

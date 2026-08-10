@@ -67,6 +67,7 @@ public enum ClaudeCodeAdapter {
     public static func map(
         _ input: HookInput,
         environment: [String: String] = [:],
+        sourceProcessID: Int32? = nil,
         now: Date = Date()
     ) -> Mapped? {
         let id = agentID(sessionID: input.session_id, cwd: input.cwd)
@@ -136,7 +137,8 @@ public enum ClaudeCodeAdapter {
             project: input.cwd.map { .init(name: instance, path: $0) },
             action: action,
             occurredAt: now,
-            sequence: Int(now.timeIntervalSince1970 * 1000)
+            sequence: Int(now.timeIntervalSince1970 * 1000),
+            pid: sourceProcessID.map(Int.init)
         )
         return .publish(payload)
     }

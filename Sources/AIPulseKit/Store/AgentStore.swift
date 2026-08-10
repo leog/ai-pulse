@@ -89,15 +89,36 @@ public final class AgentStore {
         return outcome
     }
 
-    /// Removes expired agents and recomputes staleness. Called periodically;
-    /// `date` is injectable for tests.
-    public func sweep(at date: Date = Date(), configuration: StalenessConfiguration = .default) {
+    /// Removes expired agents, demotes agents whose source is provably or
+    /// probably gone, and recomputes staleness. Called periodically; `date`
+    /// and `isProcessAlive` are injectable for tests.
+    public func sweep(
+        at date: Date = Date(),
+        configuration: StalenessConfiguration = .default,
+        isProcessAlive: (Int32) -> Bool = ProcessLiveness.isAlive
+    ) {
         let expired = agentsByID.values.filter {
             StalenessPolicy.shouldExpire($0, at: date, configuration: configuration)
         }
         for agent in expired {
             agentsByID.removeValue(forKey: agent.id)
         }
+
+        // A source that dies mid-turn emits no Stop/SessionEnd, so its agent
+        // would claim "working" forever. Two demotion paths to disconnected,
+        // mirroring RestorePolicy's launch-time treatment of live-only
+        // states: a dead backing process (checked immediately), or silence
+        // past the configured threshold when no PID is known.
+        for (id, var agent) in agentsByID {
+            let liveOnly = agent.state == .working || agent.state == .idle || agent.state == .unknown
+            let sourceDead = liveOnly && agent.sourceProcessID.map { !isProcessAlive($0) } ?? false
+            let silentTooLong = StalenessPolicy.shouldDisconnect(agent, at: date, configuration: configuration)
+            guard sourceDead || silentTooLong else { continue }
+            agent.state = .disconnected
+            agent.stateChangedAt = date
+            agentsByID[id] = agent
+        }
+
         let stale = Set(
             agentsByID.values
                 .filter { StalenessPolicy.isStale($0, at: date, configuration: configuration) }

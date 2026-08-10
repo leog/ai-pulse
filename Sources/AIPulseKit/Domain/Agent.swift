@@ -15,6 +15,10 @@ public struct Agent: Identifiable, Codable, Sendable, Hashable {
     public var projectPath: String?
     /// Bundle identifier of the application that owns this agent, if known.
     public var sourceApplicationBundleID: String?
+    /// PID of the local process backing this agent, if the integration
+    /// supplied one. Enables a liveness check that demotes agents whose
+    /// source died without a terminal event.
+    public var sourceProcessID: Int32?
     public var lastUpdatedAt: Date
     public var stateChangedAt: Date
     /// Source-provided expiration; the only way a waiting/approval state may
@@ -41,6 +45,7 @@ public struct Agent: Identifiable, Codable, Sendable, Hashable {
         projectName: String? = nil,
         projectPath: String? = nil,
         sourceApplicationBundleID: String? = nil,
+        sourceProcessID: Int32? = nil,
         lastUpdatedAt: Date = Date(),
         stateChangedAt: Date = Date(),
         expiresAt: Date? = nil,
@@ -61,6 +66,7 @@ public struct Agent: Identifiable, Codable, Sendable, Hashable {
         self.projectName = projectName
         self.projectPath = projectPath
         self.sourceApplicationBundleID = sourceApplicationBundleID
+        self.sourceProcessID = sourceProcessID
         self.lastUpdatedAt = lastUpdatedAt
         self.stateChangedAt = stateChangedAt
         self.expiresAt = expiresAt
