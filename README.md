@@ -1,7 +1,7 @@
 # AI Pulse
 
 <p align="center">
-  <img src="docs/pulse-demo.gif" width="304" alt="AI Pulse: a floating pill of eight LEDs beside the macOS Dock, animating agent status" />
+  <img src="docs/pulse-demo.gif" width="190" alt="AI Pulse: a strip of eight LEDs cycling through its agent-status animations" />
 </p>
 
 An ambient macOS light strip for AI coding agents, inspired by the
@@ -10,12 +10,18 @@ LEDs floats in the unused space beside the Dock and shows, with a single
 aggregate signal and no per-model distinction, whether anything is running,
 waiting for you, finished, or broken:
 
-- **working** — a cyan comet streaks across the LEDs
-- **waiting / approval needed** — the strip breathes orange
-- **failed** — the strip double-blinks red
-- **finished** — all eight settle to solid green
-- **idle sessions** — a slow aurora drifts in blues and teals
-- **nothing connected** — dark
+<table align="center">
+  <tr>
+    <td align="center"><img src="docs/states/working.gif" width="190" alt="Working: cyan comet animation" /><br /><sub><b>Working</b> — a cyan comet streaks while an agent runs</sub></td>
+    <td align="center"><img src="docs/states/attention.gif" width="190" alt="Needs you: breathing orange animation" /><br /><sub><b>Needs you</b> — breathes orange when an agent waits for input or approval</sub></td>
+    <td align="center"><img src="docs/states/failure.gif" width="190" alt="Failed: double-blinking red animation" /><br /><sub><b>Failed</b> — double-blinks red when a session breaks</sub></td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/states/success.png" width="190" alt="Finished: solid green LEDs" /><br /><sub><b>Finished</b> — all eight settle to solid green</sub></td>
+    <td align="center"><img src="docs/states/idle.gif" width="190" alt="Idle: slow blue-teal aurora animation" /><br /><sub><b>Idle</b> — a slow aurora drifts while sessions sit quiet</sub></td>
+    <td align="center"><img src="docs/states/off.png" width="190" alt="Off: dark LEDs" /><br /><sub><b>Off</b> — dark when nothing is connected</sub></td>
+  </tr>
+</table>
 
 Reduce Motion replaces every animation with a static treatment. The
 original per-agent icon pill remains available via Settings → Appearance →
@@ -53,7 +59,11 @@ swift run AIPulseApp                 # launch the pill (accessory app: no Dock i
 swift run AIPulseApp --snapshot DIR  # render pill + hover card PNGs headlessly and exit
 swift run aipulse health             # CLI: check the local event service
 ./Scripts/make-app.sh               # assemble + sign dist/AI Pulse.app
+./Scripts/make-gifs.sh              # regenerate docs/ GIFs from headless frames (needs ffmpeg)
 ```
+
+`docs/pulse-social.gif` is a larger, captioned cut of the same state cycle,
+made for sharing.
 
 For day-to-day use, run the bundled app rather than the bare binary: the
 script signs it with your Apple Development identity, giving a stable code

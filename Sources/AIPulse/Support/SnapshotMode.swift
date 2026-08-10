@@ -4,10 +4,13 @@ import AIPulseKit
 
 /// Developer utility: `AIPulse --snapshot <directory>` renders the pill and
 /// hover card with mock agents into PNG files (light and dark) and exits.
-/// Lets the design be reviewed headlessly, with no Screen Recording access.
+/// `AIPulse --render-lights <directory>` renders deterministic animation
+/// frames of the light strip for every signal state (docs and marketing
+/// GIFs; see Scripts/make-gifs.sh). Both are headless — no Screen Recording.
 @MainActor
 enum SnapshotMode {
     static func runIfRequested() -> Bool {
+        if LightFrameRenderer.runIfRequested() { return true }
         guard let index = CommandLine.arguments.firstIndex(of: "--snapshot"),
               CommandLine.arguments.count > index + 1 else { return false }
         let directory = URL(fileURLWithPath: CommandLine.arguments[index + 1], isDirectory: true)

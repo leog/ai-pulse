@@ -17,6 +17,10 @@ import AIPulseKit
 /// pattern with a static treatment.
 struct LightStripView: View {
     let signal: LightSignal
+    /// Renders the strip at a fixed animation time instead of live-ticking.
+    /// Headless frame rendering only (docs/marketing assets); the app always
+    /// leaves this nil.
+    var frozenTime: TimeInterval? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -31,7 +35,9 @@ struct LightStripView: View {
 
     var body: some View {
         Group {
-            if let tick, !reduceMotion {
+            if let frozenTime {
+                strip(at: frozenTime)
+            } else if let tick, !reduceMotion {
                 TimelineView(.periodic(from: .now, by: tick)) { context in
                     strip(at: context.date.timeIntervalSinceReferenceDate)
                 }
