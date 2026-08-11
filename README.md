@@ -170,6 +170,14 @@ All six MVP milestones are complete, followed by the pivot to the
 lights-first presentation (`LightAggregator` + `LightStripView`), keeping
 the icon pill as an option.
 
+## pi integration
+
+This repository ships `pi/aipulse-pi.ts`, a pi extension that mirrors the
+active pi session onto the light strip exactly like the Claude Code
+integration — same loopback API, no changes to AI Pulse needed. See
+[pi/README.md](pi/README.md) for the event mapping and install steps
+(copy the extension to `~/.pi/agent/extensions/` and `/reload`).
+
 ## Claude Code integration
 
 This repository ships `.claude/settings.json` registering `aipulse

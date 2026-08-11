@@ -49,6 +49,7 @@ enum ProviderIconCatalog {
         "xai": Style(glyph: .monogram("X"), color: nil),
         "cursor": Style(glyph: .sfSymbol("cursorarrow"), color: nil),
         "openclaw": Style(glyph: .sfSymbol("pawprint.fill"), color: Color(red: 0.72, green: 0.52, blue: 0.30)),
+        "pi": Style(glyph: .sfSymbol("terminal"), color: Color(red: 0.42, green: 0.56, blue: 0.70)),
     ]
 
     static func style(for agent: Agent) -> Style {
