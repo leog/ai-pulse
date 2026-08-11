@@ -4,6 +4,12 @@
   <img src="docs/pulse-demo.png" width="190" alt="AI Pulse: a strip of eight LEDs cycling through its agent-status animations" />
 </p>
 
+<p align="center">
+  <img src="docs/dock-placement.jpg" alt="A full-width macOS desktop showing the Dock at the bottom center and AI Pulse glowing green in the unused space to its right" />
+  <br />
+  <sub>Where it lives: the unused space beside the Dock — here on the right, all eight settled green after the agents finished.</sub>
+</p>
+
 An ambient macOS light strip for AI coding agents, inspired by the
 [SidePulse](https://sidepulse.io/) hardware gadget — but as an app. A slim strip of eight virtual
 LEDs floats in the unused space beside the Dock and shows, with a single
