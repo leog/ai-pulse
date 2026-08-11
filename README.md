@@ -5,9 +5,9 @@
 </p>
 
 <p align="center">
-  <img src="docs/dock-placement.jpg" alt="A full-width macOS desktop showing the Dock at the bottom center and AI Pulse glowing green in the unused space to its right" />
+  <img src="docs/dock-placement.gif" alt="A full-width macOS desktop showing the Dock at the bottom center and AI Pulse animating a cyan comet in the unused space to its right" />
   <br />
-  <sub>Where it lives: the unused space beside the Dock — here on the right, all eight settled green after the agents finished.</sub>
+  <sub>Where it lives: the unused space beside the Dock — here on the right, streaking cyan while an agent works.</sub>
 </p>
 
 An ambient macOS light strip for AI coding agents, inspired by the
