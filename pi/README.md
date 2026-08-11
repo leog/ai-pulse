@@ -56,10 +56,13 @@ One AI Pulse entry per pi session per project (`pi:<cwd>:<session-id>`).
 - **Open:** on `session_start`, if AI Pulse isn't answering `/v1/health`, the
   extension runs `open -a "AI Pulse"` and waits for the server before the
   first publish. Requires AI Pulse to be installed in `/Applications`.
-- **Close:** on `session_shutdown`, it removes the session's agent, then
-  quits AI Pulse (graceful `osascript quit`) **only if the store is now
-  empty**. If anything else is using AI Pulse — another pi session, a Claude
-  Code session, the `aipulse` CLI — it stays running.
+- **Close:** when pi genuinely exits (`session_shutdown` reason `quit`), it
+  removes the session's agent, then quits AI Pulse (graceful `osascript
+  quit`) **only if the store is now empty**. If anything else is using AI
+  Pulse — another pi session, a Claude Code session, the `aipulse` CLI — it
+  stays running. On `/reload`, `/new`, `/resume` or `/fork` (which keep pi
+  alive) it removes the old agent but never quits, so the app isn't
+  needlessly closed and relaunched.
 
 This keeps AI Pulse from sitting idle and consuming resources when you're
 not working with pi.

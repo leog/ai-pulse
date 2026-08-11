@@ -5,9 +5,11 @@
 // what pi is doing (working, waiting for you, finished, etc.).
 //
 // It also **opens and closes with pi**: if AI Pulse isn't already running
-// when a session starts, it launches the app; when pi shuts down and no
+// when a session starts, it launches the app; when pi actually exits and no
 // other agents are using AI Pulse, it quits the app — so it isn't left
-// running and consuming resources when you're not working with pi.
+// running and consuming resources when you're not working with pi. (On
+// /reload, /new, /resume or /fork the process stays alive and a new session
+// follows, so it does not quit then.)
 //
 // Install: copy this file to ~/.pi/agent/extensions/aipulse-pi.ts
 //   (global, all projects) — or to .pi/extensions/ inside a project for
@@ -28,7 +30,8 @@
 //     …unless ask_question → approvalRequired
 //   agent_end           → completed        ("Turn finished")
 //   agent_settled       → waitingForInput  ("Waiting for your input")
-//   session_shutdown    → remove agent, then quit AI Pulse if the store is empty
+//   session_shutdown    → remove agent, then quit AI Pulse on real exit if
+//                         the store is empty
 //
 // Privacy: only pi-generated metadata crosses the boundary — event name and
 // tool name. Prompt text, tool inputs, and outputs are never read.
@@ -70,7 +73,7 @@ interface Payload {
   project?: { name?: string; path?: string };
   action?: { type: string; bundleIdentifier: string };
   occurredAt: string; // ISO-8601; the server decodes with .iso8601
-  sequence?: number; // monotonic-ish ms timestamp, used for ordering
+  sequence?: number; // strictly monotonic ms, used for ordering
   pid?: number; // AI Pulse watches this for process liveness
 }
 
@@ -82,19 +85,9 @@ interface Handshake {
 // ---------------------------------------------------------------------------
 // Credentials: the handshake file AI Pulse writes on launch (0600). Honors
 // the same AIPULSE_CONFIG / AIPULSE_PORT / AIPULSE_TOKEN env overrides the
-// CLI honors.
+// CLI honors. Read fresh on every request so a just-launched app's token is
+// picked up.
 // ---------------------------------------------------------------------------
-
-// Strictly monotonic sequence: the reducer rejects `sequence == last` as a
-// duplicate and `sequence < last` as outdated. pi can emit several tool
-// events within one millisecond, so a raw `Date.now()` sequence would let
-// an earlier transition drop a later one. Bump past the last value instead.
-let lastSequence = { value: 0 };
-function nextSequence(): number {
-  const now = Date.now();
-  lastSequence.value = now > lastSequence.value ? now : lastSequence.value + 1;
-  return lastSequence.value;
-}
 
 const HANDSHAKE_PATH =
   process.env.AIPULSE_CONFIG ??
@@ -115,72 +108,79 @@ function endpoint(): { port: number; token: string | undefined } {
   return { port, token };
 }
 
+// Strictly monotonic sequence: the reducer rejects `sequence == last` as a
+// duplicate and `sequence < last` as outdated. pi can emit several tool
+// events within one millisecond, so a raw `Date.now()` sequence would let
+// an earlier transition drop a later one. Bump past the last value instead.
+let lastSequence = 0;
+function nextSequence(): number {
+  const now = Date.now();
+  lastSequence = now > lastSequence ? now : lastSequence + 1;
+  return lastSequence;
+}
+
 // ---------------------------------------------------------------------------
-// Publish helpers. Every call is fire-and-forget: a status light must never
-// block, log to, or crash a pi session.
+// HTTP transport. One shared helper keeps auth, JSON, and error-swallowing
+// in a single place. `null` means "don't care" (unreachable, missing token,
+// or rejected) — every caller treats it as a silent no-op so a status light
+// can never block, log to, or crash a pi session.
 // ---------------------------------------------------------------------------
 
-async function upsert(payload: Payload): Promise<void> {
+async function request(
+  path: string,
+  options: {
+    method?: "GET" | "POST" | "DELETE";
+    body?: Payload;
+    auth?: boolean;
+    signal?: AbortSignal;
+  } = {},
+): Promise<Response | null> {
   const { port, token } = endpoint();
-  if (!token) return; // AI Pulse never launched — nothing to report to.
+  const auth = options.auth ?? true;
+  if (auth && !token) return null; // AI Pulse not set up — nothing to reach.
   try {
-    await fetch(`http://127.0.0.1:${port}/v1/agents/upsert`, {
-      method: "POST",
+    return await fetch(`http://127.0.0.1:${port}${path}`, {
+      method: options.method ?? "GET",
       headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
+        ...(options.body !== undefined ? { "Content-Type": "application/json" } : {}),
+        ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: JSON.stringify(payload),
+      body: options.body !== undefined ? JSON.stringify(options.body) : undefined,
+      signal: options.signal,
     });
   } catch {
-    // AI Pulse not running or unreachable — ignore.
+    return null;
   }
 }
 
+async function upsert(payload: Payload): Promise<void> {
+  await request("/v1/agents/upsert", { method: "POST", body: payload });
+}
+
 async function remove(agentId: string): Promise<void> {
-  const { port, token } = endpoint();
-  if (!token) return;
-  try {
-    // The CLI percent-encodes "/" (paths live in agent IDs) so the ID stays
-    // on a single route segment; encodeURIComponent does the same.
-    await fetch(`http://127.0.0.1:${port}/v1/agents/${encodeURIComponent(agentId)}`, {
-      method: "DELETE",
-      headers: { Authorization: `Bearer ${token}` },
-    });
-  } catch {
-    // Ignore.
-  }
+  // The CLI percent-encodes "/" (paths live in agent IDs) so the ID stays
+  // on a single route segment; encodeURIComponent does the same.
+  await request(`/v1/agents/${encodeURIComponent(agentId)}`, { method: "DELETE" });
 }
 
 /** All agents currently known to AI Pulse (empty on any failure). */
 async function listAgents(): Promise<unknown[]> {
-  const { port, token } = endpoint();
-  if (!token) return [];
-  try {
-    const response = await fetch(`http://127.0.0.1:${port}/v1/agents`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!response.ok) return [];
-    const data = (await response.json()) as { agents?: unknown[] };
-    return data.agents ?? [];
-  } catch {
-    return [];
-  }
+  const response = await request("/v1/agents");
+  if (!response?.ok) return [];
+  const data = (await response.json().catch(() => null)) as { agents?: unknown[] } | null;
+  return data?.agents ?? [];
+}
+
+/** True if the AI Pulse HTTP server answers /v1/health (the unauthenticated route). */
+function serverUp(): Promise<boolean> {
+  return request("/v1/health", { auth: false, signal: AbortSignal.timeout(1200) }).then(
+    (response) => response?.ok ?? false,
+  );
 }
 
 // ---------------------------------------------------------------------------
 // Lifecycle: open with pi, close with pi.
 // ---------------------------------------------------------------------------
-
-/** True if the AI Pulse HTTP server is answering on /v1/health (unauthenticated). */
-function serverUp(): Promise<boolean> {
-  const { port } = endpoint();
-  return fetch(`http://127.0.0.1:${port}/v1/health`, {
-    signal: AbortSignal.timeout(1200),
-  })
-    .then((response) => response.ok)
-    .catch(() => false);
-}
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -220,6 +220,11 @@ type Ctx = {
   sessionManager?: { getSessionId?: () => string };
 };
 
+/** pi's ExtensionContext is a superset of the fields we read; narrow it once here. */
+function asCtx(ctx: unknown): Ctx {
+  return ctx as Ctx;
+}
+
 /** One AI Pulse entry per pi session per project (mirrors the Claude adapter). */
 function agentID(ctx: Ctx): string {
   const cwd = ctx.cwd || "unknown";
@@ -231,22 +236,12 @@ function instanceName(cwd: string): string {
   return cwd.split("/").filter(Boolean).pop() || cwd;
 }
 
-function makePayload(
-  ctx: Ctx,
-  state: AgentState,
-  message: string,
-): Payload {
+function makePayload(ctx: Ctx, state: AgentState, message: string): Payload {
   const cwd = ctx.cwd || "unknown";
   const instance = instanceName(cwd);
   return {
     version: 1,
-    agent: {
-      id: agentID(ctx),
-      name: "pi",
-      provider: "pi",
-      instance,
-      icon: "terminal",
-    },
+    agent: { id: agentID(ctx), name: "pi", provider: "pi", instance, icon: "terminal" },
     state,
     message,
     project: { name: instance, path: cwd },
@@ -261,57 +256,64 @@ function makePayload(
   };
 }
 
+/** Build and publish one status update. */
+function publish(ctx: Ctx, state: AgentState, message: string): Promise<void> {
+  return upsert(makePayload(ctx, state, message));
+}
+
 // ---------------------------------------------------------------------------
 // Extension entry point.
 // ---------------------------------------------------------------------------
 
 export default function (pi: ExtensionAPI): void {
   pi.on("session_start", async (event, ctx) => {
-    const context = ctx as unknown as Ctx;
     // Open with pi: bring AI Pulse up if it isn't already, then wait for it
     // to finish starting before the first publish.
     if (!(await serverUp())) {
       await launchApp();
       await waitForServer();
     }
-    await upsert(
-      makePayload(
-        context,
-        "idle",
-        event.reason === "resume" ? "Session resumed" : "Session started",
-      ),
+    await publish(
+      asCtx(ctx),
+      "idle",
+      event.reason === "resume" ? "Session resumed" : "Session started",
     );
   });
 
   pi.on("before_agent_start", (_event, ctx) => {
-    upsert(makePayload(ctx as unknown as Ctx, "working", "Working on a prompt"));
+    publish(asCtx(ctx), "working", "Working on a prompt");
   });
 
   pi.on("tool_execution_start", (event, ctx) => {
-    if (event.toolName === "ask_question") {
-      // pi is blocked waiting on a yes/no answer from you.
-      upsert(makePayload(ctx as unknown as Ctx, "approvalRequired", "Waiting for your answer"));
-    } else {
-      upsert(makePayload(ctx as unknown as Ctx, "working", `Running ${event.toolName}`));
-    }
+    // ask_question means pi is blocked waiting on a yes/no answer from you.
+    const approval = event.toolName === "ask_question";
+    publish(
+      asCtx(ctx),
+      approval ? "approvalRequired" : "working",
+      approval ? "Waiting for your answer" : `Running ${event.toolName}`,
+    );
   });
 
   pi.on("agent_end", (_event, ctx) => {
-    upsert(makePayload(ctx as unknown as Ctx, "completed", "Turn finished"));
+    publish(asCtx(ctx), "completed", "Turn finished");
   });
 
   pi.on("agent_settled", (_event, ctx) => {
     // The whole run (including retries/compaction) is done; pi is idle,
     // waiting for your next input.
-    upsert(makePayload(ctx as unknown as Ctx, "waitingForInput", "Waiting for your input"));
+    publish(asCtx(ctx), "waitingForInput", "Waiting for your input");
   });
 
-  pi.on("session_shutdown", async (_event, ctx) => {
-    // Close with pi: remove our agent, and only quit AI Pulse if nothing
-    // else is using it. If other agents remain (another pi session, Claude
-    // Code, the CLI), leave the app running.
-    await remove(agentID(ctx as unknown as Ctx));
-    if ((await listAgents()).length === 0) {
+  pi.on("session_shutdown", async (event, ctx) => {
+    const context = asCtx(ctx);
+    await remove(agentID(context));
+    // Close with pi: only quit the app when pi is genuinely terminating, and
+    // only if nothing else is using AI Pulse (another pi session, Claude Code,
+    // or the CLI). /reload, /new, /resume and /fork keep the process alive and
+    // are followed by a fresh session_start, so quitting then would just flash
+    // the app. The PID we sent also means AI Pulse self-cleans if we ever die
+    // without a graceful shutdown.
+    if (event.reason === "quit" && (await listAgents()).length === 0) {
       await quitApp();
     }
   });
