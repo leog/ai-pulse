@@ -3,17 +3,19 @@
 A [pi](https://github.com/earendil-works/pi) extension that mirrors the
 active pi session onto the AI Pulse light strip, so the ambient LEDs beside
 your Dock reflect what pi is doing — exactly like the built-in Claude Code
-integration, but for pi.
+integration, but for pi. It also **opens and closes with pi**: if AI Pulse
+isn't running when pi starts, the extension launches it; when pi shuts down
+and no other agents are using AI Pulse, it quits the app.
 
 It uses the same loopback HTTP API and handshake file as the `aipulse` CLI
 (`127.0.0.1:7455`, bearer token, `/v1/agents/upsert`), so **no changes to AI
-Pulse itself are required** — you only need the app running and this one
+Pulse itself are required** — you only need the app installed and this one
 TypeScript file loaded as a pi extension.
 
 ## Install
 
-1. Make sure **AI Pulse** is running once (it writes the credential
-   handshake file on launch).
+1. Install **AI Pulse** to `/Applications` (needed so the extension can
+   launch it by name with `open -a "AI Pulse"`).
 2. Copy the extension into pi's auto-discovered extension folder:
 
    ```sh
@@ -27,11 +29,13 @@ TypeScript file loaded as a pi extension.
 That's it. The light strip now tracks pi. When pi is running a turn it goes
 cyan/working, when it's blocked asking you a yes/no question it breathes
 orange/approval, when a turn completes it's green/completed, and when it's
-idle waiting for your next prompt it waits in orange.
+idle waiting for your next prompt it waits in orange. On shutdown, if AI
+Pulse is no longer needed, it quits.
 
 > **Never breaks pi:** every publish is fire-and-forget and swallowed on
-> failure. If AI Pulse isn't running or is unreachable, pi is completely
-> unaffected. No prompt text, tool inputs, or outputs are ever read.
+> failure. If AI Pulse isn't reachable or can't be launched, pi is
+> completely unaffected. No prompt text, tool inputs, or outputs are ever
+> read.
 
 ## How it maps
 
@@ -46,6 +50,19 @@ idle waiting for your next prompt it waits in orange.
 | `session_shutdown` | removed | `/quit`, `/new`, `/resume`, `/fork` |
 
 One AI Pulse entry per pi session per project (`pi:<cwd>:<session-id>`).
+
+## Open & close with pi
+
+- **Open:** on `session_start`, if AI Pulse isn't answering `/v1/health`, the
+  extension runs `open -a "AI Pulse"` and waits for the server before the
+  first publish. Requires AI Pulse to be installed in `/Applications`.
+- **Close:** on `session_shutdown`, it removes the session's agent, then
+  quits AI Pulse (graceful `osascript quit`) **only if the store is now
+  empty**. If anything else is using AI Pulse — another pi session, a Claude
+  Code session, the `aipulse` CLI — it stays running.
+
+This keeps AI Pulse from sitting idle and consuming resources when you're
+not working with pi.
 
 ## Tuning
 

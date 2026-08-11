@@ -4,33 +4,43 @@
 // local event service, so the ambient light strip beside the Dock reflects
 // what pi is doing (working, waiting for you, finished, etc.).
 //
+// It also **opens and closes with pi**: if AI Pulse isn't already running
+// when a session starts, it launches the app; when pi shuts down and no
+// other agents are using AI Pulse, it quits the app — so it isn't left
+// running and consuming resources when you're not working with pi.
+//
 // Install: copy this file to ~/.pi/agent/extensions/aipulse-pi.ts
 //   (global, all projects) — or to .pi/extensions/ inside a project for
 //   project-local use — then /reload pi. No npm install needed: only the
 //   extension *type* is imported; all runtime behavior uses built-ins and
-//   the global fetch.
+//   the global fetch. For auto-launch to find it, AI Pulse should be
+//   installed in /Applications (so `open -a "AI Pulse"` resolves it).
 //
 // It talks to the same loopback HTTP API and handshake file the `aipulse`
 // CLI uses, and it is deliberately silent on any failure (AI Pulse not
-// running, unreachable, wrong token) so a status light can never slow down
-// or break a pi session.
+// reachable, wrong token, app can't be launched) so a status light can
+// never slow down or break a pi session.
 //
 // Event → state mapping (mirrors the Claude Code adapter's lifecycle):
-//   session_start       → idle
+//   session_start       → idle            (also launches AI Pulse if needed)
 //   before_agent_start  → working          ("Working on a prompt")
 //   tool_execution_start→ working          ("Running <tool>")
 //     …unless ask_question → approvalRequired
 //   agent_end           → completed        ("Turn finished")
 //   agent_settled       → waitingForInput  ("Waiting for your input")
-//   session_shutdown    → remove agent
+//   session_shutdown    → remove agent, then quit AI Pulse if the store is empty
 //
 // Privacy: only pi-generated metadata crosses the boundary — event name and
 // tool name. Prompt text, tool inputs, and outputs are never read.
 
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import { execFile } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import { promisify } from "node:util";
+
+const execFileAsync = promisify(execFile);
 
 // ---------------------------------------------------------------------------
 // AI Pulse wire model (subset of AgentEventPayload / AgentState).
@@ -142,6 +152,65 @@ async function remove(agentId: string): Promise<void> {
   }
 }
 
+/** All agents currently known to AI Pulse (empty on any failure). */
+async function listAgents(): Promise<unknown[]> {
+  const { port, token } = endpoint();
+  if (!token) return [];
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/v1/agents`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return [];
+    const data = (await response.json()) as { agents?: unknown[] };
+    return data.agents ?? [];
+  } catch {
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Lifecycle: open with pi, close with pi.
+// ---------------------------------------------------------------------------
+
+/** True if the AI Pulse HTTP server is answering on /v1/health (unauthenticated). */
+function serverUp(): Promise<boolean> {
+  const { port } = endpoint();
+  return fetch(`http://127.0.0.1:${port}/v1/health`, {
+    signal: AbortSignal.timeout(1200),
+  })
+    .then((response) => response.ok)
+    .catch(() => false);
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function waitForServer(timeoutMs = 10000): Promise<void> {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (await serverUp()) return;
+    await sleep(200);
+  }
+}
+
+async function launchApp(): Promise<void> {
+  try {
+    await execFileAsync("open", ["-a", "AI Pulse"]);
+  } catch {
+    // App not installed / not launchable by name — nothing else we can do.
+  }
+}
+
+async function quitApp(): Promise<void> {
+  try {
+    // Graceful quit so applicationWillTerminate can persist state.
+    await execFileAsync("osascript", ["-e", 'quit app "AI Pulse"']);
+  } catch {
+    // Ignore.
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Identity + payload construction.
 // ---------------------------------------------------------------------------
@@ -197,10 +266,17 @@ function makePayload(
 // ---------------------------------------------------------------------------
 
 export default function (pi: ExtensionAPI): void {
-  pi.on("session_start", (event, ctx) => {
-    upsert(
+  pi.on("session_start", async (event, ctx) => {
+    const context = ctx as unknown as Ctx;
+    // Open with pi: bring AI Pulse up if it isn't already, then wait for it
+    // to finish starting before the first publish.
+    if (!(await serverUp())) {
+      await launchApp();
+      await waitForServer();
+    }
+    await upsert(
       makePayload(
-        ctx as unknown as Ctx,
+        context,
         "idle",
         event.reason === "resume" ? "Session resumed" : "Session started",
       ),
@@ -230,7 +306,13 @@ export default function (pi: ExtensionAPI): void {
     upsert(makePayload(ctx as unknown as Ctx, "waitingForInput", "Waiting for your input"));
   });
 
-  pi.on("session_shutdown", (_event, ctx) => {
-    remove(agentID(ctx as unknown as Ctx));
+  pi.on("session_shutdown", async (_event, ctx) => {
+    // Close with pi: remove our agent, and only quit AI Pulse if nothing
+    // else is using it. If other agents remain (another pi session, Claude
+    // Code, the CLI), leave the app running.
+    await remove(agentID(ctx as unknown as Ctx));
+    if ((await listAgents()).length === 0) {
+      await quitApp();
+    }
   });
 }
