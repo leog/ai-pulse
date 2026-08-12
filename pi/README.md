@@ -4,8 +4,10 @@ A [pi](https://github.com/earendil-works/pi) extension that mirrors the
 active pi session onto the AI Pulse light strip, so the ambient LEDs beside
 your Dock reflect what pi is doing — exactly like the built-in Claude Code
 integration, but for pi. It also **opens and closes with pi**: if AI Pulse
-isn't running when pi starts, the extension launches it; when pi shuts down
-and no other agents are using AI Pulse, it quits the app.
+isn't running when pi starts, the extension launches it; when pi shuts down,
+no other agents are using AI Pulse, and the extension itself was the one that
+launched the app, it quits it — an instance you started yourself is never
+touched.
 
 It uses the same loopback HTTP API and handshake file as the `aipulse` CLI
 (`127.0.0.1:7455`, bearer token, `/v1/agents/upsert`), so **no changes to AI
@@ -58,14 +60,20 @@ One AI Pulse entry per pi session per project (`pi:<cwd>:<session-id>`).
   first publish. Requires AI Pulse to be installed in `/Applications`.
 - **Close:** when pi genuinely exits (`session_shutdown` reason `quit`), it
   removes the session's agent, then quits AI Pulse (graceful `osascript
-  quit`) **only if the store is now empty**. If anything else is using AI
-  Pulse — another pi session, a Claude Code session, the `aipulse` CLI — it
-  stays running. On `/reload`, `/new`, `/resume` or `/fork` (which keep pi
-  alive) it removes the old agent but never quits, so the app isn't
-  needlessly closed and relaunched.
+  quit`) **only if this extension launched the app and the store is now
+  empty**. A user-launched instance (or one started by another pi process) is
+  left running. If anything else is using AI Pulse — another pi session, a
+  Claude Code session, the `aipulse` CLI — it stays running. On `/reload`,
+  `/new`, `/resume` or `/fork` (which keep pi alive) it removes the old agent
+  but never quits, so the app isn't needlessly closed and relaunched.
 
 This keeps AI Pulse from sitting idle and consuming resources when you're
 not working with pi.
+
+> **macOS Automation permission:** the graceful quit runs `osascript`, which
+> triggers a one-time macOS Automation (Apple Events) permission prompt for
+> the process hosting pi. Denial is swallowed silently (the app just stays
+> open) — benign, but note that auto-quit won't work until you grant it.
 
 ## Tuning
 

@@ -5,11 +5,12 @@
 // what pi is doing (working, waiting for you, finished, etc.).
 //
 // It also **opens and closes with pi**: if AI Pulse isn't already running
-// when a session starts, it launches the app; when pi actually exits and no
-// other agents are using AI Pulse, it quits the app — so it isn't left
-// running and consuming resources when you're not working with pi. (On
-// /reload, /new, /resume or /fork the process stays alive and a new session
-// follows, so it does not quit then.)
+// when a session starts, it launches the app; when pi actually exits, no
+// other agents are using AI Pulse, and *this extension* was the one that
+// launched the app, it quits it — so an instance you started yourself is
+// never touched, and nothing is left running and consuming resources when
+// you're not working with pi. (On /reload, /new, /resume or /fork the
+// process stays alive and a new session follows, so it does not quit then.)
 //
 // Install: copy this file to ~/.pi/agent/extensions/aipulse-pi.ts
 //   (global, all projects) — or to .pi/extensions/ inside a project for
@@ -31,7 +32,7 @@
 //   agent_end           → completed        ("Turn finished")
 //   agent_settled       → waitingForInput  ("Waiting for your input")
 //   session_shutdown    → remove agent, then quit AI Pulse on real exit if
-//                         the store is empty
+//                         this extension launched it and the store is empty
 //
 // Privacy: only pi-generated metadata crosses the boundary — event name and
 // tool name. Prompt text, tool inputs, and outputs are never read.
@@ -194,6 +195,19 @@ async function waitForServer(timeoutMs = 10000): Promise<void> {
   }
 }
 
+/** True if the AI Pulse app process is already running. `open -a` succeeds
+ *  whether it launches the app or merely activates an already-running one,
+ *  so this distinguishes "we started it" from "the user already had it open"
+ *  — only the former is ours to quit on shutdown. */
+async function appRunning(): Promise<boolean> {
+  try {
+    await execFileAsync("pgrep", ["-x", "AIPulse"]);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 async function launchApp(): Promise<void> {
   try {
     await execFileAsync("open", ["-a", "AI Pulse"]);
@@ -204,7 +218,10 @@ async function launchApp(): Promise<void> {
 
 async function quitApp(): Promise<void> {
   try {
-    // Graceful quit so applicationWillTerminate can persist state.
+    // Graceful quit so applicationWillTerminate can persist state. The first
+    // call triggers a one-time macOS Automation (Apple Events) permission
+    // prompt for the process hosting pi; denial is swallowed silently here
+    // (the app just stays open) — benign, see pi/README.md.
     await execFileAsync("osascript", ["-e", 'quit app "AI Pulse"']);
   } catch {
     // Ignore.
@@ -265,13 +282,26 @@ function publish(ctx: Ctx, state: AgentState, message: string): Promise<void> {
 // Extension entry point.
 // ---------------------------------------------------------------------------
 
+// True once this pi process has launched AI Pulse itself. Only the process
+// that started the app quits it on shutdown; a user-launched instance (or
+// one started by another pi process, which owns its own flag) is left alone.
+let launchedApp = false;
+
 export default function (pi: ExtensionAPI): void {
   pi.on("session_start", async (event, ctx) => {
     // Open with pi: bring AI Pulse up if it isn't already, then wait for it
-    // to finish starting before the first publish.
+    // to finish starting before the first publish. Remember whether *we*
+    // launched it, so shutdown only quits an app this extension started.
     if (!(await serverUp())) {
-      await launchApp();
-      await waitForServer();
+      if (await appRunning()) {
+        // Already up but still booting — the user (or a sibling pi process)
+        // started it, so it isn't ours to quit. Just give the server a moment.
+        await waitForServer();
+      } else {
+        // Not running: bringing it up is on us, so it's ours to quit later.
+        await launchApp();
+        launchedApp = true;
+      }
     }
     await publish(
       asCtx(ctx),
@@ -307,13 +337,14 @@ export default function (pi: ExtensionAPI): void {
   pi.on("session_shutdown", async (event, ctx) => {
     const context = asCtx(ctx);
     await remove(agentID(context));
-    // Close with pi: only quit the app when pi is genuinely terminating, and
-    // only if nothing else is using AI Pulse (another pi session, Claude Code,
-    // or the CLI). /reload, /new, /resume and /fork keep the process alive and
-    // are followed by a fresh session_start, so quitting then would just flash
-    // the app. The PID we sent also means AI Pulse self-cleans if we ever die
-    // without a graceful shutdown.
-    if (event.reason === "quit" && (await listAgents()).length === 0) {
+    // Close with pi: only quit the app when pi is genuinely terminating, this
+    // extension is the one that launched it, and nothing else is using AI
+    // Pulse (another pi session, Claude Code, or the CLI). A user-launched
+    // instance is left alone. /reload, /new, /resume and /fork keep the
+    // process alive and are followed by a fresh session_start, so quitting
+    // then would just flash the app. The PID we sent also means AI Pulse
+    // self-cleans if we ever die without a graceful shutdown.
+    if (event.reason === "quit" && launchedApp && (await listAgents()).length === 0) {
       await quitApp();
     }
   });
