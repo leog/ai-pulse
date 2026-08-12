@@ -194,11 +194,15 @@ async function waitForServer(timeoutMs = 10000): Promise<void> {
   }
 }
 
-async function launchApp(): Promise<void> {
+/** Launch AI Pulse by name. True if LaunchServices resolved it (i.e. the app
+ *  is installed); false — fast — when it isn't, so callers can skip waiting
+ *  for a server that will never appear. */
+async function launchApp(): Promise<boolean> {
   try {
     await execFileAsync("open", ["-a", "AI Pulse"]);
+    return true;
   } catch {
-    // App not installed / not launchable by name — nothing else we can do.
+    return false; // Not installed / not resolvable by name.
   }
 }
 
@@ -270,8 +274,12 @@ export default function (pi: ExtensionAPI): void {
     // Open with pi: bring AI Pulse up if it isn't already, then wait for it
     // to finish starting before the first publish.
     if (!(await serverUp())) {
-      await launchApp();
-      await waitForServer();
+      // Launch failed (AI Pulse not installed / renamed): don't poll 10s for
+      // a server that can't appear — publish below simply no-ops. On success,
+      // wait for the app to finish booting before the first publish.
+      if (await launchApp()) {
+        await waitForServer();
+      }
     }
     await publish(
       asCtx(ctx),

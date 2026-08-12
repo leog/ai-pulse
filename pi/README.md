@@ -55,7 +55,9 @@ One AI Pulse entry per pi session per project (`pi:<cwd>:<session-id>`).
 
 - **Open:** on `session_start`, if AI Pulse isn't answering `/v1/health`, the
   extension runs `open -a "AI Pulse"` and waits for the server before the
-  first publish. Requires AI Pulse to be installed in `/Applications`.
+  first publish. Requires AI Pulse to be installed in `/Applications`. If the
+  launch fails (AI Pulse missing or renamed), it does **not** wait — the 10s
+  server poll is skipped and pi starts immediately.
 - **Close:** when pi genuinely exits (`session_shutdown` reason `quit`), it
   removes the session's agent, then quits AI Pulse (graceful `osascript
   quit`) **only if the store is now empty**. If anything else is using AI
