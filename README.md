@@ -135,46 +135,13 @@ Quit via the pill's right-click menu → **Quit AI Pulse** (or kill the process)
 
 ## Status
 
-Milestones 1–3 are complete:
-
-- **M1** — nonactivating panel, pill UI, mock agents, hover card, context menu.
-- **M2** — bottom/left/right Dock placement, multi-display selection with a
-  Settings display picker, debounced screen/space-change observation,
-  off-screen clamping, opt-in auto-hidden-Dock following (best-effort, from
-  the Dock's public preference domain — read-only, no Dock interaction).
-- **M3** — `AgentReducer` event normalization (versioning, ID validation,
-  sequence/timestamp ordering, duplicate rejection, safe-action mapping),
-  centralized `StalenessPolicy` (working agents stale after a configurable
-  silence, then demoted to disconnected after a longer one; agents whose
-  backing process has exited are demoted within one sweep via a PID
-  liveness check; completed agents expire after a configurable delay;
-  waiting, approval, and failed states never expire on timers), and persistence to
-  `~/Library/Application Support/AIPulse/agents.json` with restart restore:
-  unresolved attention states come back as-is, live-only states come back
-  as `disconnected` until their source reports again.
-
-- **M4** — loopback-only HTTP event service (`LocalHTTPServer`), Keychain
-  bearer token + 0600 handshake file for the CLI, transport validation,
-  the `aipulse` publisher CLI, and end-to-end integration tests. Verified
-  live: CLI → HTTP → reducer → store → pill in ~150 ms round-trip.
-- **M5** — Claude Code adapter (`ClaudeCodeAdapter` + `aipulse claude-hook`),
-  built against the documented hook lifecycle: SessionStart→idle,
-  UserPromptSubmit/PreToolUse→working, PermissionRequest and
-  permission-prompt Notifications→approvalRequired, idle-prompt
-  Notifications→waitingForInput, Stop→completed, StopFailure→failed,
-  SessionEnd→removed. One pill entry per session per project. Prompt text,
-  tool inputs, and assistant output are never decoded, so they can never be
-  published. The hook always exits 0 and prints nothing.
-- **M6** — optional dynamic Dock icon (off by default; Settings →
-  Appearance). Aggregates the same AgentStore snapshot as the pill via
-  `DockTileAggregator`: failure > attention > working > neutral, with an
-  `NSDockTile` custom content view for the state treatment and `badgeLabel`
-  showing the count of unacknowledged urgent agents. The floating pill and
-  the Dock icon are independently toggleable; the icon never bounces.
-
-All six MVP milestones are complete, followed by the pivot to the
-lights-first presentation (`LightAggregator` + `LightStripView`), keeping
-the icon pill as an option.
+The MVP is complete — all six milestones shipped (pill UI, Dock placement,
+event normalization + persistence, the loopback HTTP service + `aipulse`
+CLI, the Claude Code adapter, and the optional Dock icon), followed by the
+pivot to the lights-first presentation (`LightAggregator` +
+`LightStripView`), keeping the icon pill as an option. Remaining and
+follow-up work is tracked in
+[GitHub issues](https://github.com/leog/ai-pulse/issues).
 
 ## pi integration
 
