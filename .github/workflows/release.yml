@@ -60,7 +60,15 @@ jobs:
           echo "Releasing v$version (from ${latest:-no previous tag})"
 
       - name: Build app bundle
-        run: AIPULSE_VERSION="${{ steps.version.outputs.version }}" ./Scripts/make-app.sh
+        run: |
+          AIPULSE_VERSION="${{ steps.version.outputs.version }}" AIPULSE_UNIVERSAL=1 ./Scripts/make-app.sh
+          # Fail the release rather than ship a single-arch bundle.
+          archs=$(lipo -archs "dist/AI Pulse.app/Contents/MacOS/AIPulse")
+          echo "App architectures: $archs"
+          case "$archs" in
+            *arm64*x86_64*|*x86_64*arm64*) ;;
+            *) echo "::error::expected universal binary, got: $archs"; exit 1 ;;
+          esac
 
       - name: Zip app bundle
         run: ditto -c -k --keepParent "dist/AI Pulse.app" "AI-Pulse-${{ steps.version.outputs.version }}.zip"
@@ -75,6 +83,7 @@ jobs:
             --generate-notes \
             --notes "$(cat <<'NOTES'
           **Install:** unzip, move `AI Pulse.app` to `/Applications`, and launch.
+          The bundle is universal (Apple Silicon + Intel).
           These builds are not yet notarized, so on first launch macOS will warn
           about an unverified developer: right-click the app → **Open** (on
           macOS 15+, also allow it under **System Settings → Privacy & Security →
