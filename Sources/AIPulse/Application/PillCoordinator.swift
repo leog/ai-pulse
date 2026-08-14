@@ -181,6 +181,12 @@ final class PillCoordinator {
         maintenanceController?.sweepNow()
     }
 
+    /// Pushes the user-arranged display priority into the store; every
+    /// surface (icon sort, lights, Dock tile) re-derives from it.
+    func statePriorityChanged(_ order: [AgentState]) {
+        store.statePriority = StatusPriority.normalize(order)
+    }
+
     /// Dock icon and floating pill are independently toggleable surfaces.
     func presentationChanged(showDockIcon: Bool, showPill: Bool) {
         dockTileController?.setEnabled(showDockIcon)

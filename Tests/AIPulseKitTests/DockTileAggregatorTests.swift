@@ -27,12 +27,28 @@ final class DockTileAggregatorTests: XCTestCase {
         XCTAssertEqual(summary.urgentCount, 1)
     }
 
-    func testFailureBeatsAttention() {
+    /// The default order ranks actionable states (approval, waiting) above
+    /// failed, matching StatusPriority.defaultOrder.
+    func testAttentionOutranksFailureByDefault() {
         let summary = DockTileAggregator.summarize([
             agent("a", .waitingForInput), agent("b", .failed), agent("c", .approvalRequired),
         ])
-        XCTAssertEqual(summary.emphasis, .failure)
+        XCTAssertEqual(summary.emphasis, .attention)
         XCTAssertEqual(summary.urgentCount, 3)
+    }
+
+    func testFailureBeatsWorking() {
+        let summary = DockTileAggregator.summarize([agent("a", .working), agent("b", .failed)])
+        XCTAssertEqual(summary.emphasis, .failure)
+        XCTAssertEqual(summary.urgentCount, 1)
+    }
+
+    func testCustomOrderRestoresFailureFirst() {
+        let summary = DockTileAggregator.summarize(
+            [agent("a", .waitingForInput), agent("b", .failed)],
+            order: StatusPriority.normalize([.failed])
+        )
+        XCTAssertEqual(summary.emphasis, .failure)
     }
 
     func testAcknowledgedAgentsDoNotCount() {
