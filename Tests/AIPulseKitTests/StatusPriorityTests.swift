@@ -33,6 +33,26 @@ final class StatusPriorityTests: XCTestCase {
         ])
     }
 
+    func testCustomOrderChangesRankAndSort() {
+        let order = StatusPriority.normalize([.completed, .failed])
+        XCTAssertEqual(StatusPriority.rank(.completed, order: order), 0)
+        XCTAssertEqual(StatusPriority.rank(.failed, order: order), 1)
+        let sorted = StatusPriority.sort(
+            [agent("a", .working), agent("b", .completed)],
+            order: order
+        ).map(\.state)
+        XCTAssertEqual(sorted, [.completed, .working])
+    }
+
+    func testNormalizeRepairsPartialAndDuplicateOrders() {
+        XCTAssertEqual(StatusPriority.normalize([]), StatusPriority.defaultOrder)
+        XCTAssertEqual(
+            StatusPriority.normalize([.completed, .completed, .failed]),
+            [.completed, .failed, .approvalRequired, .waitingForInput, .working, .disconnected, .idle, .unknown]
+        )
+        XCTAssertEqual(Set(StatusPriority.normalize([.idle])), Set(AgentState.allCases))
+    }
+
     func testSamePrioritySortsByMostRecentTransition() {
         let older = agent("older", .working, changedAt: Date(timeIntervalSince1970: 100))
         let newer = agent("newer", .working, changedAt: Date(timeIntervalSince1970: 200))

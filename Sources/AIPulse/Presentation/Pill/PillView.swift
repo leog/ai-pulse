@@ -62,7 +62,10 @@ struct PillView: View {
 
     /// Aggregate LED strip: one light bar for all agents.
     private var lightStrip: some View {
-        LightStripView(signal: LightAggregator.signal(for: store.pillAgents))
+        LightStripView(
+            signal: LightAggregator.signal(for: store.pillAgents, order: store.statePriority),
+            background: appearance.pillBackground
+        )
             .contentShape(Capsule())
             .onTapGesture {
                 coordinator.showAgentList()
@@ -91,7 +94,6 @@ struct PillView: View {
                 AgentIconButton(
                     agent: agent,
                     isStale: store.staleAgentIDs.contains(agent.id),
-                    standalone: appearance.pillBackground == .transparent,
                     coordinator: coordinator
                 )
             }
@@ -102,7 +104,7 @@ struct PillView: View {
             }
         }
         .padding(.horizontal, 9)
-        .frame(height: 36)
+        .frame(height: 28)
         .background {
             // ultraThin let bright wallpapers wash the pill out; a heavier
             // material plus a scrim keeps icon contrast stable regardless
@@ -148,13 +150,10 @@ struct PillView: View {
 struct AgentIconButton: View {
     let agent: Agent
     var isStale: Bool = false
-    /// True when the pill has no capsule background (transparent style), so
-    /// each icon needs its own backing to stand out from the wallpaper.
-    var standalone: Bool = false
     let coordinator: PillCoordinator
 
     var body: some View {
-        AgentStatusIcon(agent: agent, isStale: isStale, standalone: standalone)
+        AgentLightView(agent: agent, isStale: isStale)
             .contentShape(Circle())
             .onTapGesture {
                 coordinator.agentClicked(agent)

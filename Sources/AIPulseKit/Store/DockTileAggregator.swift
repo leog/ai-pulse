@@ -23,19 +23,29 @@ public struct DockTileSummary: Sendable, Equatable {
 }
 
 public enum DockTileAggregator {
-    public static func summarize(_ agents: [Agent]) -> DockTileSummary {
+    public static func summarize(
+        _ agents: [Agent],
+        order: [AgentState] = StatusPriority.defaultOrder
+    ) -> DockTileSummary {
         let unacknowledged = agents.filter { $0.state.requiresAttention && !$0.isAcknowledged }
         let urgentCount = unacknowledged.count
 
-        let emphasis: DockTileEmphasis
-        if unacknowledged.contains(where: { $0.state == .failed }) {
-            emphasis = .failure
-        } else if !unacknowledged.isEmpty {
-            emphasis = .attention
-        } else if agents.contains(where: { $0.state == .working }) {
-            emphasis = .working
-        } else {
-            emphasis = .neutral
+        var emphasis: DockTileEmphasis = .neutral
+        for state in order {
+            let candidate: DockTileEmphasis? = switch state {
+            case .failed:
+                unacknowledged.contains { $0.state == .failed } ? .failure : nil
+            case .waitingForInput, .approvalRequired:
+                unacknowledged.contains { $0.state == state } ? .attention : nil
+            case .working:
+                agents.contains { $0.state == .working } ? .working : nil
+            default:
+                nil
+            }
+            if let candidate {
+                emphasis = candidate
+                break
+            }
         }
         return DockTileSummary(emphasis: emphasis, urgentCount: urgentCount)
     }

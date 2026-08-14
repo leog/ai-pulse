@@ -15,8 +15,18 @@ import AIPulseKit
 /// Animations step at LED-refresh cadence via TimelineView(.periodic) —
 /// deliberately not display-refresh — and Reduce Motion replaces every
 /// pattern with a static treatment.
+/// Palette from the inspiration: #26d8ff comet, #30d158 success, #ff2d20
+/// error. Shared with the per-agent lights so both styles speak one language.
+enum LEDPalette {
+    static let cyan = Color(red: 0.15, green: 0.85, blue: 1.0)
+    static let auroraBlue = Color(red: 0.23, green: 0.42, blue: 1.0)
+    static let green = Color(red: 0.19, green: 0.82, blue: 0.35)
+    static let red = Color(red: 1.0, green: 0.18, blue: 0.13)
+}
+
 struct LightStripView: View {
     let signal: LightSignal
+    var background: PillBackgroundStyle = .dark
     /// Renders the strip at a fixed animation time instead of live-ticking.
     /// Headless frame rendering only (docs/marketing assets); the app always
     /// leaves this nil.
@@ -26,12 +36,6 @@ struct LightStripView: View {
 
     private static let ledCount = 8
     private static let cometTail = 3
-
-    // Palette from the inspiration: #26d8ff comet, #30d158 success, #ff2d20 error.
-    private static let cyan = Color(red: 0.15, green: 0.85, blue: 1.0)
-    private static let auroraBlue = Color(red: 0.23, green: 0.42, blue: 1.0)
-    private static let green = Color(red: 0.19, green: 0.82, blue: 0.35)
-    private static let red = Color(red: 1.0, green: 0.18, blue: 0.13)
 
     var body: some View {
         Group {
@@ -73,10 +77,27 @@ struct LightStripView: View {
         }
         .padding(.horizontal, 10)
         .frame(height: 20)
-        .background(Capsule().fill(Color.black.opacity(0.88)))
-        .overlay(Capsule().strokeBorder(Color.white.opacity(0.12)))
+        .background {
+            switch background {
+            case .dark:
+                Capsule().fill(Color.black.opacity(0.88))
+            case .translucent:
+                ZStack {
+                    Capsule().fill(.regularMaterial)
+                    // LEDs need some darkness behind them to glow.
+                    Capsule().fill(Color.black.opacity(0.35))
+                }
+            case .transparent:
+                EmptyView()
+            }
+        }
+        .overlay {
+            if background != .transparent {
+                Capsule().strokeBorder(Color.white.opacity(0.12))
+            }
+        }
         .compositingGroup()
-        .shadow(color: .black.opacity(0.3), radius: 4, y: 1)
+        .shadow(color: .black.opacity(background == .transparent ? 0 : 0.3), radius: 4, y: 1)
     }
 
     private func ledStyle(index: Int, time: TimeInterval?) -> (color: Color, brightness: Double) {
@@ -85,16 +106,16 @@ struct LightStripView: View {
             return (.white, 0.05)
 
         case .idle:
-            guard let time else { return (Self.cyan, 0.22) }
+            guard let time else { return (LEDPalette.cyan, 0.22) }
             let phase = time / 3 + Double(index) * 0.45
             let mix = (sin(phase) + 1) / 2
-            let color = Self.blend(Self.cyan, Self.auroraBlue, mix)
+            let color = Self.blend(LEDPalette.cyan, LEDPalette.auroraBlue, mix)
             return (color, 0.18 + 0.14 * (sin(phase + 1.3) + 1) / 2)
 
         case .working:
             guard let time else {
                 // Static: a lit center segment.
-                return (3...5).contains(index) ? (Self.cyan, 0.9) : (Self.cyan, 0.1)
+                return (3...5).contains(index) ? (LEDPalette.cyan, 0.9) : (LEDPalette.cyan, 0.1)
             }
             // Comet: head wraps past the strip so the tail fully exits.
             let head = Int(time / 0.12) % (Self.ledCount + Self.cometTail + 1)
@@ -106,21 +127,21 @@ struct LightStripView: View {
             case 3: 0.12
             default: 0.06
             }
-            return (Self.cyan, brightness)
+            return (LEDPalette.cyan, brightness)
 
         case .attention:
             guard let time else { return (.orange, 1) }
             return (.orange, 0.55 + 0.4 * (sin(time * 3) + 1) / 2)
 
         case .failure:
-            guard let time else { return (Self.red, 1) }
+            guard let time else { return (LEDPalette.red, 1) }
             // Double-blink, then a dim hold before repeating.
             let cycle = time.truncatingRemainder(dividingBy: 1.2)
             let on = cycle < 0.15 || (0.3..<0.45).contains(cycle)
-            return (Self.red, on ? 1 : 0.18)
+            return (LEDPalette.red, on ? 1 : 0.18)
 
         case .success:
-            return (Self.green, 0.95)
+            return (LEDPalette.green, 0.95)
         }
     }
 

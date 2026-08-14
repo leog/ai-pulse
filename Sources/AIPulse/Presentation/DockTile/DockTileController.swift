@@ -38,7 +38,7 @@ final class DockTileController {
 
     private func refresh() {
         guard enabled else { return }
-        let summary = DockTileAggregator.summarize(store.allSorted)
+        let summary = DockTileAggregator.summarize(store.allSorted, order: store.statePriority)
         guard summary != lastSummary else { return }
         lastSummary = summary
 
@@ -59,6 +59,7 @@ final class DockTileController {
     private func observeStore() {
         withObservationTracking {
             _ = store.agentsByID
+            _ = store.statePriority
         } onChange: { [weak self] in
             Task { @MainActor in
                 guard let self else { return }
@@ -69,51 +70,44 @@ final class DockTileController {
     }
 }
 
-/// Static aggregate rendering: a dark rounded tile with a pill motif and a
-/// status indicator. Rendered on demand by NSDockTile.display(), so state
-/// is conveyed by color + glyph, not animation.
+/// Static aggregate rendering: the app icon with a status indicator in the
+/// corner. Rendered on demand by NSDockTile.display(), so state is conveyed
+/// by color, not animation. (Setting a contentView replaces the Dock's own
+/// icon rendering, so the view draws the icon itself.)
 struct DockTileView: View {
     let summary: DockTileSummary
+
+    /// The bundled icon art, loaded straight from the icns: the system's
+    /// legacy-icon treatment (NSApp.applicationIconImage on macOS 26+) wraps
+    /// non-squircle icons in a gray rounded-square backdrop. Unbundled
+    /// `swift run` builds fall back to the generic application icon.
+    private static let iconImage: NSImage = {
+        if let url = Bundle.main.url(forResource: "AppIcon", withExtension: "icns"),
+           let image = NSImage(contentsOf: url) {
+            return image
+        }
+        return NSApp.applicationIconImage
+    }()
 
     var body: some View {
         GeometryReader { proxy in
             let side = min(proxy.size.width, proxy.size.height)
             ZStack {
-                RoundedRectangle(cornerRadius: side * 0.22)
-                    .fill(
-                        LinearGradient(
-                            colors: [Color(white: 0.22), Color(white: 0.10)],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .padding(side * 0.05)
+                Image(nsImage: Self.iconImage)
+                    .resizable()
+                    .interpolation(.high)
+                    .frame(width: side, height: side)
 
-                Capsule()
-                    .fill(Color.white.opacity(0.14))
-                    .overlay(
-                        HStack(spacing: side * 0.045) {
-                            ForEach(0..<3, id: \.self) { _ in
-                                Circle()
-                                    .fill(Color.white.opacity(0.55))
-                                    .frame(width: side * 0.09, height: side * 0.09)
-                            }
-                        }
-                    )
-                    .frame(width: side * 0.56, height: side * 0.26)
-
-                if summary.emphasis != .neutral {
-                    ZStack {
-                        Circle().fill(indicatorColor)
-                        if let glyph = indicatorGlyph {
-                            Image(systemName: glyph)
-                                .font(.system(size: side * 0.12, weight: .bold))
-                                .foregroundStyle(.white)
-                        }
-                    }
-                    .frame(width: side * 0.24, height: side * 0.24)
-                    .overlay(Circle().strokeBorder(Color.black.opacity(0.3), lineWidth: 1))
-                    .offset(x: side * 0.22, y: side * 0.22)
+                // Only working gets a corner dot: attention and failure are
+                // already counted by the numeric badge, so a second marker
+                // for them would be redundant.
+                if summary.emphasis == .working {
+                    Circle()
+                        .fill(indicatorColor)
+                        .frame(width: side * 0.2, height: side * 0.2)
+                        .overlay(Circle().strokeBorder(Color.black.opacity(0.3), lineWidth: 1))
+                        .shadow(color: indicatorColor.opacity(0.7), radius: side * 0.03)
+                        .offset(x: side * 0.26, y: side * 0.26)
                 }
             }
         }
@@ -126,15 +120,6 @@ struct DockTileView: View {
         case .working: .indigo
         case .attention: .orange
         case .failure: .red
-        }
-    }
-
-    private var indicatorGlyph: String? {
-        switch summary.emphasis {
-        case .neutral: nil
-        case .working: "arrow.triangle.2.circlepath"
-        case .attention: "questionmark"
-        case .failure: "exclamationmark"
         }
     }
 

@@ -10,7 +10,11 @@ cd "$(dirname "$0")/.."
 
 CONFIG="${1:-release}"
 APP="dist/AI Pulse.app"
-VERSION="${AIPULSE_VERSION:-0.1.0}"
+# Releases pass AIPULSE_VERSION; local builds stamp the nearest tag (plus
+# commit distance and -dirty) so Settings shows the real version instead of
+# a placeholder.
+VERSION="${AIPULSE_VERSION:-$(git describe --tags --always --dirty 2>/dev/null | sed 's/^v//')}"
+VERSION="${VERSION:-0.0.0}"
 
 # AIPULSE_UNIVERSAL=1 builds a universal (arm64 + x86_64) binary for
 # distribution; the default single-arch build keeps local iteration fast.

@@ -140,7 +140,7 @@ struct SettingsView: View {
                         Text(style.label).tag(style)
                     }
                 }
-                Text("Lights shows one aggregate LED strip for all agents; Agent icons shows one icon per session.")
+                Text("Lights shows one aggregate LED strip for all agents; Agent lights shows one light per session.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Picker("Pill background", selection: $appearance.pillBackground) {
@@ -148,7 +148,7 @@ struct SettingsView: View {
                         Text(style.label).tag(style)
                     }
                 }
-                Text("Transparent removes the capsule so only the agent icons float beside the Dock.")
+                Text("Transparent removes the capsule so only the lights float beside the Dock.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
                 Toggle("Show floating pill", isOn: $appearance.showPill)
@@ -176,6 +176,40 @@ struct SettingsView: View {
                     Text("Never").tag(-1.0)
                 }
                 Text("A working agent whose process has exited is disconnected immediately; silence alone disconnects it after this delay. Waiting, approval, and failed states stay visible until resolved or acknowledged.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            Section("State priority") {
+                ForEach(Array(behavior.statePriorityOrder.enumerated()), id: \.element) { index, state in
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(state.tint)
+                            .frame(width: 8, height: 8)
+                        Text(sentenceCase(state.displayLabel))
+                        Spacer()
+                        Button {
+                            movePriority(at: index, by: -1)
+                        } label: {
+                            Image(systemName: "chevron.up")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(index == 0)
+                        .accessibilityLabel("Move \(state.displayLabel) up")
+                        Button {
+                            movePriority(at: index, by: 1)
+                        } label: {
+                            Image(systemName: "chevron.down")
+                        }
+                        .buttonStyle(.borderless)
+                        .disabled(index == behavior.statePriorityOrder.count - 1)
+                        .accessibilityLabel("Move \(state.displayLabel) down")
+                    }
+                }
+                Button("Reset to Default") {
+                    behavior.statePriorityOrder = StatusPriority.defaultOrder
+                }
+                .disabled(behavior.statePriorityOrder == StatusPriority.defaultOrder)
+                Text("Most important first. When agents are in different states, the lights strip and Dock icon show the highest state present, and agent icons sort in this order.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -212,12 +246,27 @@ struct SettingsView: View {
         .onChange(of: behavior.staleness) {
             coordinator.behaviorSettingsChanged()
         }
+        .onChange(of: behavior.statePriorityOrder) {
+            coordinator.statePriorityChanged(behavior.statePriorityOrder)
+        }
         .onChange(of: appearance.showDockIcon) {
             coordinator.presentationChanged(showDockIcon: appearance.showDockIcon, showPill: appearance.showPill)
         }
         .onChange(of: appearance.showPill) {
             coordinator.presentationChanged(showDockIcon: appearance.showDockIcon, showPill: appearance.showPill)
         }
+    }
+
+    private func movePriority(at index: Int, by offset: Int) {
+        var order = behavior.statePriorityOrder
+        let target = index + offset
+        guard order.indices.contains(index), order.indices.contains(target) else { return }
+        order.swapAt(index, target)
+        behavior.statePriorityOrder = order
+    }
+
+    private func sentenceCase(_ label: String) -> String {
+        label.prefix(1).uppercased() + label.dropFirst()
     }
 
     private func applyPort() {

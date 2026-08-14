@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var serverController: ServerController?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        store.statePriority = behaviorSettings.statePriorityOrder
         // Restore unresolved states from the previous run; live-only states
         // come back as disconnected until their source reports again.
         let restored = RestorePolicy.rehydrate(persistence.load(), at: Date())

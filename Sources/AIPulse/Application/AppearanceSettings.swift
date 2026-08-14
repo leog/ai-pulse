@@ -2,7 +2,8 @@ import Foundation
 import Observation
 
 /// What the floating indicator shows: the aggregate LED strip (default) or
-/// per-agent icons.
+/// one light per agent. (`icons` is the historical raw value; the style now
+/// renders per-agent lights.)
 enum IndicatorStyle: String, CaseIterable {
     case lights
     case icons
@@ -10,7 +11,7 @@ enum IndicatorStyle: String, CaseIterable {
     var label: String {
         switch self {
         case .lights: "Lights"
-        case .icons: "Agent icons"
+        case .icons: "Agent lights"
         }
     }
 }

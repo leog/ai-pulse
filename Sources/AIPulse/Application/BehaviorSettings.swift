@@ -12,10 +12,17 @@ final class BehaviorSettings {
         static let completedRemovalDelay = "behavior.completedRemovalDelay"
         // Stored as seconds; -1 encodes "never disconnect".
         static let workingDisconnectAfter = "behavior.workingDisconnectAfter"
+        // Stored as an ordered array of AgentState raw values.
+        static let statePriority = "behavior.statePriority"
     }
 
     var staleness: StalenessConfiguration {
         didSet { save() }
+    }
+
+    /// Display priority across agent states, most urgent first.
+    var statePriorityOrder: [AgentState] {
+        didSet { defaults.set(statePriorityOrder.map(\.rawValue), forKey: Keys.statePriority) }
     }
 
     private let defaults: UserDefaults
@@ -35,6 +42,11 @@ final class BehaviorSettings {
             config.workingDisconnectAfter = stored < 0 ? nil : stored
         }
         staleness = config
+        if let raw = defaults.stringArray(forKey: Keys.statePriority) {
+            statePriorityOrder = StatusPriority.normalize(raw.compactMap(AgentState.init(rawValue:)))
+        } else {
+            statePriorityOrder = StatusPriority.defaultOrder
+        }
     }
 
     private func save() {

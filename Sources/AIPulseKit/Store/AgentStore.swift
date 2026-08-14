@@ -12,16 +12,20 @@ public final class AgentStore {
     /// IDs of agents currently considered stale, refreshed by `sweep`.
     public private(set) var staleAgentIDs: Set<String> = []
 
+    /// Display priority every surface derives from, most urgent first.
+    /// The app layer overwrites this from user settings.
+    public var statePriority: [AgentState] = StatusPriority.defaultOrder
+
     public init() {}
 
     /// All agents, urgency-sorted with stable tie-breaking.
     public var allSorted: [Agent] {
-        StatusPriority.sort(Array(agentsByID.values))
+        StatusPriority.sort(Array(agentsByID.values), order: statePriority)
     }
 
     /// Agents eligible for the pill (muted agents stay in the list window only).
     public var pillAgents: [Agent] {
-        StatusPriority.sort(agentsByID.values.filter { !$0.isMuted })
+        StatusPriority.sort(agentsByID.values.filter { !$0.isMuted }, order: statePriority)
     }
 
     /// Splits pill agents into the visible slice and an overflow count.

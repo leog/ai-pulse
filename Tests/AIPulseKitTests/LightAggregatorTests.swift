@@ -42,11 +42,41 @@ final class LightAggregatorTests: XCTestCase {
         )
     }
 
-    func testFailureBeatsEverything() {
+    func testFailureBeatsWorkingAndSuccess() {
+        XCTAssertEqual(
+            LightAggregator.signal(for: [
+                agent("a", .working), agent("b", .completed), agent("c", .failed),
+            ]),
+            .failure
+        )
+    }
+
+    /// The default order ranks actionable states (approval, waiting) above
+    /// failed, matching StatusPriority.defaultOrder.
+    func testAttentionOutranksFailureByDefault() {
         XCTAssertEqual(
             LightAggregator.signal(for: [
                 agent("a", .working), agent("b", .waitingForInput), agent("c", .failed),
             ]),
+            .attention
+        )
+    }
+
+    func testCustomOrderPromotesCompletedOverWorking() {
+        let order = StatusPriority.normalize([.completed])
+        XCTAssertEqual(
+            LightAggregator.signal(for: [agent("a", .working), agent("b", .completed)], order: order),
+            .success
+        )
+    }
+
+    func testCustomOrderRestoresFailureFirst() {
+        let order = StatusPriority.normalize([.failed])
+        XCTAssertEqual(
+            LightAggregator.signal(
+                for: [agent("a", .waitingForInput), agent("b", .failed)],
+                order: order
+            ),
             .failure
         )
     }
@@ -68,7 +98,7 @@ final class LightAggregatorTests: XCTestCase {
         store.upsert(agent("a", .waitingForInput))
         store.upsert(agent("b", .failed))
         store.upsert(agent("c", .working))
-        XCTAssertEqual(LightAggregator.signal(for: store.allSorted), .failure)
+        XCTAssertEqual(LightAggregator.signal(for: store.allSorted), .attention)
 
         store.acknowledgeAll()
         XCTAssertEqual(LightAggregator.signal(for: store.allSorted), .working)

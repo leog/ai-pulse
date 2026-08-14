@@ -18,21 +18,33 @@ public enum LightSignal: String, Sendable, Equatable {
 }
 
 public enum LightAggregator {
-    public static func signal(for agents: [Agent]) -> LightSignal {
-        if agents.contains(where: { $0.state == .failed && !$0.isAcknowledged }) {
-            return .failure
-        }
-        if agents.contains(where: {
-            ($0.state == .waitingForInput || $0.state == .approvalRequired) && !$0.isAcknowledged
-        }) {
-            return .attention
-        }
-        if agents.contains(where: { $0.state == .working }) {
-            return .working
-        }
-        if agents.contains(where: { $0.state == .completed }) {
-            return .success
+    public static func signal(
+        for agents: [Agent],
+        order: [AgentState] = StatusPriority.defaultOrder
+    ) -> LightSignal {
+        for state in order {
+            guard let candidate = signal(for: state) else { continue }
+            // Attention-type states stay quiet once acknowledged; a strip
+            // that kept shouting after "got it" would train users to ignore it.
+            let matches = if state.requiresAttention {
+                agents.contains { $0.state == state && !$0.isAcknowledged }
+            } else {
+                agents.contains { $0.state == state }
+            }
+            if matches { return candidate }
         }
         return agents.isEmpty ? .off : .idle
+    }
+
+    /// The signal a state raises when it wins the priority scan; nil for
+    /// states that only contribute to the idle/off fallback.
+    private static func signal(for state: AgentState) -> LightSignal? {
+        switch state {
+        case .failed: .failure
+        case .waitingForInput, .approvalRequired: .attention
+        case .working: .working
+        case .completed: .success
+        case .idle, .disconnected, .unknown: nil
+        }
     }
 }
