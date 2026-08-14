@@ -200,12 +200,16 @@ async function waitForServer(timeoutMs = 10000): Promise<void> {
  *  so this distinguishes "we started it" from "the user already had it open"
  *  — only the former is ours to quit on shutdown. */
 async function appRunning(): Promise<boolean> {
-  try {
-    await execFileAsync("pgrep", ["-x", "AIPulse"]);
-    return true;
-  } catch {
-    return false;
+  const candidates = ["AIPulseApp", "AIPulse"]; // try both executable names
+  for (const name of candidates) {
+    try {
+      await execFileAsync("pgrep", ["-x", name]);
+      return true;
+    } catch {
+      // keep trying
+    }
   }
+  return false;
 }
 
 async function launchApp(): Promise<void> {
