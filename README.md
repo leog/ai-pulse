@@ -1,5 +1,5 @@
 <h1>
-  <img src="docs/logo.png" width="34" height="34" align="middle" alt="" />
+  <img src="docs/logo-inline.png" width="32" height="38" align="middle" alt="" />
   AI Pulse
 </h1>
 
