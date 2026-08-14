@@ -194,9 +194,9 @@ async function waitForServer(timeoutMs = 10000): Promise<void> {
   }
 }
 
-/** Launch AI Pulse by name. True if LaunchServices resolved it (i.e. the app
- *  is installed); false — fast — when it isn't, so callers can skip waiting
- *  for a server that will never appear. */
+/** Launch AI Pulse by name. True if LaunchServices resolved it (i.e. `open -a`
+ *  succeeded); false — fast — when it isn't resolvable by name, so callers can
+ *  skip waiting for a server that will never appear. */
 async function launchApp(): Promise<boolean> {
   try {
     await execFileAsync("open", ["-a", "AI Pulse"]);
