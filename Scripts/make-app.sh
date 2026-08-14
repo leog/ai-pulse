@@ -15,7 +15,18 @@ VERSION="${AIPULSE_VERSION:-0.1.0}"
 swift build -c "$CONFIG"
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
+
+# The icon is generated from the single 1024px master at build time, so the
+# repo carries one reviewable PNG instead of a binary .icns.
+ICONSET="$(mktemp -d)/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for size in 16 32 128 256 512; do
+    sips -z "$size" "$size" Resources/AppIcon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+    sips -z "$((size * 2))" "$((size * 2))" Resources/AppIcon.png \
+        --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil --convert icns "$ICONSET" --output "$APP/Contents/Resources/AppIcon.icns"
 
 cp ".build/$CONFIG/AIPulseApp" "$APP/Contents/MacOS/AIPulse"
 # Embed the CLI so hook configs can reference a stable path inside the app.
@@ -36,6 +47,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <string>AI Pulse</string>
     <key>CFBundleExecutable</key>
     <string>AIPulse</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
