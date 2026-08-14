@@ -56,7 +56,10 @@ The `aipulse` CLI ships inside the bundle at
 `AI Pulse.app/Contents/Helpers/aipulse`.
 
 Releases are cut automatically when a PR merges: patch by default, minor or
-major when the PR carries a `release:minor` / `release:major` label.
+major when the PR carries a `release:minor` / `release:major` label. A
+`release:none` label skips the release, and merges that leave nothing
+shippable changed since the last tag (only `docs/`, `*.md`, `LICENSE`, or
+`.github/`) are skipped automatically.
 
 ## Settings
 
