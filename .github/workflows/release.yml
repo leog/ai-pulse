@@ -4,14 +4,20 @@ name: Release
 # into main. The bump level comes from PR labels (release:major /
 # release:minor, default patch). workflow_dispatch cuts one on demand.
 #
+# The trigger is `push` rather than `pull_request: closed` because a
+# pull_request run for a PR from a fork gets a read-only GITHUB_TOKEN
+# regardless of the permissions block, so `gh release create` 403s. Push runs
+# always execute in this repo's context with a writable token. Direct pushes
+# to main carry no PR, so the job resolves the merged PR from the pushed
+# commit and skips when there is none.
+#
 # CI has no signing identity, so release bundles are ad-hoc signed; the
 # release notes carry the Gatekeeper first-launch instructions. When a
 # Developer ID certificate is added as a secret later, signing +
 # notarization steps can slot in before "Zip app bundle".
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches: [main]
   workflow_dispatch:
     inputs:
@@ -23,10 +29,16 @@ on:
 
 permissions:
   contents: write
+  pull-requests: read
+
+# Serialized: two releases computing the next version at once would land on
+# the same tag.
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
-    if: github.event_name == 'workflow_dispatch' || github.event.pull_request.merged == true
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
@@ -37,19 +49,36 @@ jobs:
       - name: Compute next version
         id: version
         env:
-          LABELS: ${{ join(github.event.pull_request.labels.*.name, ' ') }}
+          GH_TOKEN: ${{ github.token }}
           DISPATCH_BUMP: ${{ inputs.bump }}
         run: |
+          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
+            bump="${DISPATCH_BUMP:-patch}"
+          else
+            # A push carries no PR payload, so the labels come from whichever
+            # merged PR contains this commit. No PR means a direct push, which
+            # rides along with the next merge instead of cutting its own release.
+            pulls=$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/pulls" \
+              --jq '[.[] | select(.merged_at != null)]')
+            if [ "$(jq 'length' <<< "$pulls")" -eq 0 ]; then
+              echo "No merged PR for $GITHUB_SHA; skipping release."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+            labels=$(jq -r '.[].labels[].name' <<< "$pulls" | tr '\n' ' ')
+            echo "Merged PR labels: ${labels:-none}"
+            bump=patch
+            case " $labels " in
+              *" release:major "*) bump=major ;;
+              *" release:minor "*) bump=minor ;;
+            esac
+          fi
+
           latest=$(git tag --list 'v*' --sort=-v:refname | head -1)
           if [ -z "$latest" ]; then
             version="0.1.0"
           else
             IFS=. read -r major minor patch <<< "${latest#v}"
-            bump="${DISPATCH_BUMP:-patch}"
-            case " $LABELS " in
-              *" release:major "*) bump=major ;;
-              *" release:minor "*) bump=minor ;;
-            esac
             case "$bump" in
               major) version="$((major + 1)).0.0" ;;
               minor) version="$major.$((minor + 1)).0" ;;
@@ -60,12 +89,23 @@ jobs:
           echo "Releasing v$version (from ${latest:-no previous tag})"
 
       - name: Build app bundle
-        run: AIPULSE_VERSION="${{ steps.version.outputs.version }}" ./Scripts/make-app.sh
+        if: steps.version.outputs.skip != 'true'
+        run: |
+          AIPULSE_VERSION="${{ steps.version.outputs.version }}" AIPULSE_UNIVERSAL=1 ./Scripts/make-app.sh
+          # Fail the release rather than ship a single-arch bundle.
+          archs=$(lipo -archs "dist/AI Pulse.app/Contents/MacOS/AIPulse")
+          echo "App architectures: $archs"
+          case "$archs" in
+            *arm64*x86_64*|*x86_64*arm64*) ;;
+            *) echo "::error::expected universal binary, got: $archs"; exit 1 ;;
+          esac
 
       - name: Zip app bundle
+        if: steps.version.outputs.skip != 'true'
         run: ditto -c -k --keepParent "dist/AI Pulse.app" "AI-Pulse-${{ steps.version.outputs.version }}.zip"
 
       - name: Create release
+        if: steps.version.outputs.skip != 'true'
         env:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
@@ -75,6 +115,7 @@ jobs:
             --generate-notes \
             --notes "$(cat <<'NOTES'
           **Install:** unzip, move `AI Pulse.app` to `/Applications`, and launch.
+          The bundle is universal (Apple Silicon + Intel).
           These builds are not yet notarized, so on first launch macOS will warn
           about an unverified developer: right-click the app → **Open** (on
           macOS 15+, also allow it under **System Settings → Privacy & Security →

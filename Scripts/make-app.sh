@@ -12,16 +12,44 @@ CONFIG="${1:-release}"
 APP="dist/AI Pulse.app"
 VERSION="${AIPULSE_VERSION:-0.1.0}"
 
-swift build -c "$CONFIG"
+# AIPULSE_UNIVERSAL=1 builds a universal (arm64 + x86_64) binary for
+# distribution; the default single-arch build keeps local iteration fast.
+# Each slice is built with --triple and merged with lipo, which works with
+# plain SwiftPM (swift build --arch x --arch y needs Xcode's build system).
+if [ "${AIPULSE_UNIVERSAL:-0}" = "1" ]; then
+    swift build -c "$CONFIG" --triple arm64-apple-macosx
+    swift build -c "$CONFIG" --triple x86_64-apple-macosx
+    BIN_DIR=".build/universal/$CONFIG"
+    mkdir -p "$BIN_DIR"
+    for bin in AIPulseApp aipulse; do
+        lipo -create -output "$BIN_DIR/$bin" \
+            ".build/arm64-apple-macosx/$CONFIG/$bin" \
+            ".build/x86_64-apple-macosx/$CONFIG/$bin"
+    done
+else
+    swift build -c "$CONFIG"
+    BIN_DIR=".build/$CONFIG"
+fi
 
 rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers"
+mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Helpers" "$APP/Contents/Resources"
 
-cp ".build/$CONFIG/AIPulseApp" "$APP/Contents/MacOS/AIPulse"
+# The icon is generated from the single 1024px master at build time, so the
+# repo carries one reviewable PNG instead of a binary .icns.
+ICONSET="$(mktemp -d)/AppIcon.iconset"
+mkdir -p "$ICONSET"
+for size in 16 32 128 256 512; do
+    sips -z "$size" "$size" Resources/AppIcon.png --out "$ICONSET/icon_${size}x${size}.png" >/dev/null
+    sips -z "$((size * 2))" "$((size * 2))" Resources/AppIcon.png \
+        --out "$ICONSET/icon_${size}x${size}@2x.png" >/dev/null
+done
+iconutil --convert icns "$ICONSET" --output "$APP/Contents/Resources/AppIcon.icns"
+
+cp "$BIN_DIR/AIPulseApp" "$APP/Contents/MacOS/AIPulse"
 # Embed the CLI so hook configs can reference a stable path inside the app.
 # It lives in Helpers/, NOT MacOS/: "AIPulse" and "aipulse" are the same path
 # on case-insensitive filesystems and the CLI would clobber the app binary.
-cp ".build/$CONFIG/aipulse" "$APP/Contents/Helpers/aipulse"
+cp "$BIN_DIR/aipulse" "$APP/Contents/Helpers/aipulse"
 
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
@@ -36,6 +64,10 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <string>AI Pulse</string>
     <key>CFBundleExecutable</key>
     <string>AIPulse</string>
+    <key>CFBundleIconFile</key>
+    <string>AppIcon</string>
+    <key>CFBundleIconName</key>
+    <string>AppIcon</string>
     <key>CFBundlePackageType</key>
     <string>APPL</string>
     <key>CFBundleShortVersionString</key>
@@ -70,4 +102,4 @@ else
 fi
 
 codesign --verify --deep "$APP"
-echo "Built: $APP"
+echo "Built: $APP ($(lipo -archs "$APP/Contents/MacOS/AIPulse"))"

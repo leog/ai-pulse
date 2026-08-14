@@ -90,8 +90,31 @@ struct SettingsView: View {
         )
     }
 
+    /// The bundled app icon; unbundled `swift run` builds fall back to the
+    /// generic application icon AppKit hands back.
+    private var appIcon: NSImage { NSApp.applicationIconImage }
+
+    private var versionText: String {
+        let info = Bundle.main.infoDictionary
+        guard let version = info?["CFBundleShortVersionString"] as? String else { return "Development build" }
+        return "Version \(version)"
+    }
+
     var body: some View {
         Form {
+            Section {
+                HStack(spacing: 12) {
+                    Image(nsImage: appIcon)
+                        .resizable()
+                        .interpolation(.high)
+                        .frame(width: 44, height: 44)
+                        .accessibilityHidden(true)
+                    VStack(alignment: .leading, spacing: 2) {
+                        Text("AI Pulse").font(.title3.weight(.semibold))
+                        Text(versionText).font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
             Section("Placement") {
                 Picker("Pill side", selection: $settings.preferences.preferredSide) {
                     Text("Left of Dock").tag(PlacementPreferences.Side.leading)

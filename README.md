@@ -1,4 +1,11 @@
-# AI Pulse
+<h1>
+  <img src="docs/logo-inline.png" width="56" height="62" align="middle" alt="" />
+  AI Pulse
+</h1>
+
+<p align="center">
+  <a href="https://www.producthunt.com/products/ai-pulse-2?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ai-pulse-2" target="_blank" rel="noopener noreferrer"><img alt="AI Pulse - Ambient macOS light strip for AI coding agents | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1222514&amp;theme=dark&amp;t=1786667843628"></a>
+</p>
 
 <p align="center">
   <img src="docs/pulse-demo.png" width="190" alt="AI Pulse: a strip of eight LEDs cycling through its agent-status animations" />

@@ -212,11 +212,15 @@ async function appRunning(): Promise<boolean> {
   return false;
 }
 
-async function launchApp(): Promise<void> {
+/** Launch AI Pulse by name. True if LaunchServices resolved it (i.e. `open -a`
+ *  succeeded); false — fast — when it isn't resolvable by name, so callers can
+ *  skip waiting for a server that will never appear. */
+async function launchApp(): Promise<boolean> {
   try {
     await execFileAsync("open", ["-a", "AI Pulse"]);
+    return true;
   } catch {
-    // App not installed / not launchable by name — nothing else we can do.
+    return false; // Not installed / not resolvable by name.
   }
 }
 
@@ -301,11 +305,13 @@ export default function (pi: ExtensionAPI): void {
         // Already up but still booting — the user (or a sibling pi process)
         // started it, so it isn't ours to quit. Just give the server a moment.
         await waitForServer();
-      } else {
+      } else if (await launchApp()) {
         // Not running: bringing it up is on us, so it's ours to quit later.
-        await launchApp();
+        await waitForServer();
         launchedApp = true;
       }
+      // Launch failed (AI Pulse not installed / renamed): don't poll 10s for
+      // a server that can't appear — publish below simply no-ops.
     }
     await publish(
       asCtx(ctx),
