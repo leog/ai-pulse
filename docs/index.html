@@ -317,6 +317,12 @@
   }
   footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
 
+  /* Narrow screens: the CLI block still scrolls, but at a size that keeps most
+     of each line on screen instead of cutting it mid-flag. */
+  @media (max-width: 560px) {
+    pre { font-size: .74rem; padding: 16px 14px; }
+  }
+
   @media (prefers-reduced-motion: reduce) {
     html { scroll-behavior: auto; }
     .strip i { animation: none !important; }
@@ -448,7 +454,11 @@
 
     <div class="split">
       <figure>
-        <img src="settings.png" loading="lazy" width="809" height="1942" alt="The AI Pulse settings window, showing the Placement, Appearance, Behavior, State priority, Local API, and Privacy sections" />
+        <!-- Linked full size: at 300px the window's own labels are too small to read. -->
+        <a href="settings.png">
+          <img src="settings.png" loading="lazy" width="809" height="1942" alt="The AI Pulse settings window, showing the Placement, Appearance, Behavior, State priority, Local API, and Privacy sections" />
+        </a>
+        <figcaption>Tap to view full size.</figcaption>
       </figure>
 
       <dl class="options">
