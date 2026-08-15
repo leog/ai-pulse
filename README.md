@@ -1,7 +1,8 @@
-<h1>
-  <img src="docs/logo-inline.png" width="56" height="62" align="middle" alt="" />
-  AI Pulse
-</h1>
+<p align="center">
+  <img src="docs/app-icon.png" width="96" height="96" alt="" />
+</p>
+
+<h1 align="center">AI Pulse</h1>
 
 <p align="center">
   <b><a href="https://aipulse.leog.me">aipulse.leog.me</a></b> — website &amp; download
