@@ -2,7 +2,9 @@ name: Release
 
 # Cuts a semver release with a downloadable app bundle whenever a PR merges
 # into main. The bump level comes from PR labels (release:major /
-# release:minor, default patch). workflow_dispatch cuts one on demand.
+# release:minor, default patch). A release:none label skips the release, as
+# do merges where nothing shippable changed since the last tag (docs, *.md,
+# LICENSE, .github only). workflow_dispatch cuts one on demand.
 #
 # The trigger is `push` rather than `pull_request: closed` because a
 # pull_request run for a PR from a fork gets a read-only GITHUB_TOKEN
@@ -52,6 +54,8 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           DISPATCH_BUMP: ${{ inputs.bump }}
         run: |
+          latest=$(git tag --list 'v*' --sort=-v:refname | head -1)
+
           if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ]; then
             bump="${DISPATCH_BUMP:-patch}"
           else
@@ -67,6 +71,28 @@ jobs:
             fi
             labels=$(jq -r '.[].labels[].name' <<< "$pulls" | tr '\n' ' ')
             echo "Merged PR labels: ${labels:-none}"
+
+            case " $labels " in
+              *" release:none "*)
+                echo "release:none label; skipping release."
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                exit 0 ;;
+            esac
+
+            # Docs-only merges don't change the shipped bundle. Diff against
+            # the last tag rather than this push alone: an earlier skipped
+            # push may still be waiting to ride along with the next release,
+            # and a release must never leave shippable changes untagged.
+            if [ -n "$latest" ]; then
+              shippable=$(git diff --name-only "$latest"..HEAD -- \
+                . ':!docs' ':!*.md' ':!LICENSE' ':!.github')
+              if [ -z "$shippable" ]; then
+                echo "Nothing shippable changed since $latest; skipping release."
+                echo "skip=true" >> "$GITHUB_OUTPUT"
+                exit 0
+              fi
+            fi
+
             bump=patch
             case " $labels " in
               *" release:major "*) bump=major ;;
@@ -74,7 +100,6 @@ jobs:
             esac
           fi
 
-          latest=$(git tag --list 'v*' --sort=-v:refname | head -1)
           if [ -z "$latest" ]; then
             version="0.1.0"
           else

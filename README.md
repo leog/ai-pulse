@@ -41,9 +41,9 @@ waiting for you, finished, or broken:
   </tr>
 </table>
 
-Reduce Motion replaces every animation with a static treatment. The
-original per-agent icon pill remains available via Settings → Appearance →
-Indicator style.
+Reduce Motion replaces every animation with a static treatment. A
+per-agent presentation — one LED per session instead of one aggregate
+strip — remains available via Settings → Appearance → Indicator style.
 
 AI Pulse is **not** embedded in the Dock — macOS exposes no public API for
 Dock accessories. It is a Dock-adjacent, borderless, nonactivating `NSPanel`
@@ -61,7 +61,45 @@ The `aipulse` CLI ships inside the bundle at
 `AI Pulse.app/Contents/Helpers/aipulse`.
 
 Releases are cut automatically when a PR merges: patch by default, minor or
-major when the PR carries a `release:minor` / `release:major` label.
+major when the PR carries a `release:minor` / `release:major` label. A
+`release:none` label skips the release, and merges that leave nothing
+shippable changed since the last tag (only `docs/`, `*.md`, `LICENSE`, or
+`.github/`) are skipped automatically.
+
+## Settings
+
+Right-click the pill → **Settings…** to adapt AI Pulse to your setup:
+
+<p align="center">
+  <img src="docs/settings.png" width="420" alt="The AI Pulse settings window: Placement, Appearance, Behavior, State priority, Local API, and Privacy sections" />
+</p>
+
+- **Placement** — which side of the Dock the pill sits on, which display it
+  follows (automatic tracks the Dock's display), the corner it falls back
+  to when there is no room beside the Dock, and whether it follows an
+  auto-hidden Dock off-screen.
+- **Appearance** — *Indicator style* switches between **Lights** (one
+  aggregate LED strip for all agents) and **Agent lights** (one LED per
+  session, so every agent's state is visible at once). *Pill background*
+  picks the capsule: **Dark**, **Translucent** (system material), or
+  **Transparent** (no capsule — the lights float over the wallpaper). The
+  floating pill and the Dock icon are independent surfaces you can toggle
+  separately; the Dock icon shows the app icon with a numeric badge for
+  agents needing attention and a small dot while agents work.
+- **Behavior** — housekeeping timers: when completed agents leave the pill,
+  when silent working agents are marked stale (dimmed), and when they are
+  demoted to disconnected. Waiting, approval, and failed states never
+  expire — they stay visible until resolved or acknowledged.
+- **State priority** — most important first. When agents are in different
+  states, the lights strip and Dock icon show the highest state present,
+  and per-agent lights sort in this order (which also decides who stays
+  visible when there are more agents than slots). Reorder freely — e.g.
+  put **Working** on top if you'd rather see in-progress work than
+  finished runs — or reset to the default.
+- **Local API** — the loopback port integrations publish to (see
+  [Publishing agent status](#publishing-agent-status)).
+- **Privacy** — a reminder of the contract: AI Pulse only renders status
+  events; it never reads prompts, terminals, editors, or windows.
 
 ## Requirements (building from source)
 
@@ -139,7 +177,7 @@ Quit via the pill's right-click menu → **Quit AI Pulse** (or kill the process)
     pure `PlacementPolicy` (gutter → adjacent → corner fallbacks, clamping).
 - `Sources/AIPulse` — the app:
   - `Presentation/Pill/` — nonactivating `AIPulsePanel`, SwiftUI capsule,
-    per-state icons (glyph + badge + ring, never color alone), hover card.
+    the aggregate light strip and per-agent lights, hover card.
   - `Presentation/AgentList/`, `Presentation/Settings/` — conventional
     keyboard-accessible windows.
   - `Placement/DockPlacementController` — debounced screen-change
