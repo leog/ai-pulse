@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>AI Pulse — an ambient macOS light strip for AI coding agents</title>
 <meta name="description" content="AI Pulse is an ambient macOS light strip for AI coding agents. Eight virtual LEDs beside the Dock show whether an agent is working, waiting on you, finished, or broken." />
-<link rel="icon" href="logo-inline.png" />
+<link rel="icon" href="app-icon.png" />
 <meta property="og:type" content="website" />
 <meta property="og:title" content="AI Pulse" />
 <meta property="og:description" content="An ambient macOS light strip for AI coding agents. Eight virtual LEDs beside the Dock show whether an agent is working, waiting on you, finished, or broken." />
@@ -149,7 +149,8 @@
   header.hero { padding: 96px 0 72px; text-align: center; }
 
   .mark {
-    width: 92px; height: 92px;
+    width: 104px;
+    height: auto;          /* the icon is square; never let width/height squash it */
     margin: 0 auto 26px;
     display: block;
     filter: drop-shadow(0 0 34px rgba(34, 211, 238, .34));
@@ -299,7 +300,7 @@
 
 <header class="hero">
   <div class="wrap">
-    <img class="mark" src="logo-inline.png" alt="" width="92" height="92" />
+    <img class="mark" src="app-icon.png" alt="" width="512" height="512" />
     <h1>AI Pulse</h1>
     <p class="tagline">
       An ambient macOS light strip for AI coding agents. Eight virtual LEDs beside your
