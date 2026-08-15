@@ -1,0 +1,487 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>AI Pulse — an ambient macOS light strip for AI coding agents</title>
+<meta name="description" content="AI Pulse is an ambient macOS light strip for AI coding agents. Eight virtual LEDs beside the Dock show whether an agent is working, waiting on you, finished, or broken." />
+<link rel="icon" href="logo-inline.png" />
+<meta property="og:type" content="website" />
+<meta property="og:title" content="AI Pulse" />
+<meta property="og:description" content="An ambient macOS light strip for AI coding agents. Eight virtual LEDs beside the Dock show whether an agent is working, waiting on you, finished, or broken." />
+<meta property="og:url" content="https://aipulse.leog.me/" />
+<meta property="og:image" content="https://aipulse.leog.me/pulse-demo.png" />
+<meta name="twitter:card" content="summary_large_image" />
+<style>
+  :root {
+    --bg: #060709;
+    --bg-raised: #0d0f13;
+    --line: #1c2027;
+    --text: #e8ecf2;
+    --muted: #9aa4b2;
+    --cyan: #22d3ee;
+    --orange: #f59e0b;
+    --red: #ef4444;
+    --green: #22c55e;
+    --aurora: #38bdf8;
+    --radius: 14px;
+    --maxw: 900px;
+  }
+
+  * { box-sizing: border-box; }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    margin: 0;
+    background:
+      radial-gradient(900px 500px at 50% -120px, #0d1b24 0%, transparent 70%),
+      var(--bg);
+    color: var(--text);
+    font: 16px/1.65 ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, Helvetica, Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  a { color: var(--cyan); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+
+  ::selection { background: rgba(34, 211, 238, .3); }
+
+  .wrap { max-width: var(--maxw); margin: 0 auto; padding: 0 24px; }
+
+  /* ---------- LED strip ---------- */
+
+  .strip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 9px 14px;
+    border: 1px solid #23282f;
+    border-radius: 999px;
+    background: #000;
+  }
+
+  .strip i {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #10161c;
+    display: block;
+  }
+
+  .strip.lg { gap: 11px; padding: 12px 18px; }
+  .strip.lg i { width: 16px; height: 16px; }
+
+  /* working: cyan comet */
+  .s-working i {
+    animation: comet 1.8s linear infinite;
+    color: var(--cyan);
+  }
+  @keyframes comet {
+    0%, 55%, 100% { background: #10161c; box-shadow: none; }
+    12% { background: currentColor; box-shadow: 0 0 12px currentColor, 0 0 26px currentColor; }
+    30% { background: color-mix(in srgb, currentColor 35%, #10161c); box-shadow: 0 0 6px color-mix(in srgb, currentColor 45%, transparent); }
+  }
+
+  /* attention: orange breathing */
+  .s-attention i {
+    color: var(--orange);
+    animation: breathe 2.6s ease-in-out infinite;
+  }
+  @keyframes breathe {
+    0%, 100% { background: color-mix(in srgb, currentColor 22%, #10161c); box-shadow: none; }
+    50% { background: currentColor; box-shadow: 0 0 12px currentColor, 0 0 22px color-mix(in srgb, currentColor 60%, transparent); }
+  }
+
+  /* failure: red double blink */
+  .s-failure i {
+    color: var(--red);
+    animation: doubleblink 1.9s steps(1, end) infinite;
+  }
+  @keyframes doubleblink {
+    0%, 9%, 18%, 27% { background: currentColor; box-shadow: 0 0 12px currentColor, 0 0 24px currentColor; }
+    9.01%, 17.99%, 27.01%, 100% { background: #180d0d; box-shadow: none; }
+  }
+
+  /* success: solid green */
+  .s-success i {
+    color: var(--green);
+    background: currentColor;
+    box-shadow: 0 0 10px currentColor, 0 0 20px color-mix(in srgb, currentColor 55%, transparent);
+  }
+
+  /* idle: slow blue-teal aurora */
+  .s-idle i {
+    color: var(--aurora);
+    animation: aurora 5.2s ease-in-out infinite;
+  }
+  @keyframes aurora {
+    0%, 100% { background: #0e1a22; box-shadow: none; }
+    50% { background: color-mix(in srgb, currentColor 70%, #0e1a22); box-shadow: 0 0 10px color-mix(in srgb, currentColor 55%, transparent); }
+  }
+
+  /* off */
+  .s-off i { background: #0b0f13; }
+
+  /* per-LED phase offsets */
+  .strip i:nth-child(1) { animation-delay: 0s; }
+  .strip i:nth-child(2) { animation-delay: .10s; }
+  .strip i:nth-child(3) { animation-delay: .20s; }
+  .strip i:nth-child(4) { animation-delay: .30s; }
+  .strip i:nth-child(5) { animation-delay: .40s; }
+  .strip i:nth-child(6) { animation-delay: .50s; }
+  .strip i:nth-child(7) { animation-delay: .60s; }
+  .strip i:nth-child(8) { animation-delay: .70s; }
+
+  .s-attention i:nth-child(n), .s-failure i:nth-child(n) { animation-delay: 0s; }
+  .s-idle i:nth-child(1) { animation-delay: 0s; }
+  .s-idle i:nth-child(2) { animation-delay: -.5s; }
+  .s-idle i:nth-child(3) { animation-delay: -1s; }
+  .s-idle i:nth-child(4) { animation-delay: -1.5s; }
+  .s-idle i:nth-child(5) { animation-delay: -2s; }
+  .s-idle i:nth-child(6) { animation-delay: -2.5s; }
+  .s-idle i:nth-child(7) { animation-delay: -3s; }
+  .s-idle i:nth-child(8) { animation-delay: -3.5s; }
+
+  /* ---------- hero ---------- */
+
+  header.hero { padding: 96px 0 72px; text-align: center; }
+
+  .mark {
+    width: 92px; height: 92px;
+    margin: 0 auto 26px;
+    display: block;
+    filter: drop-shadow(0 0 34px rgba(34, 211, 238, .34));
+  }
+
+  h1 {
+    margin: 0 0 14px;
+    font-size: clamp(2.6rem, 7vw, 4rem);
+    letter-spacing: -.03em;
+    line-height: 1.05;
+    font-weight: 700;
+  }
+
+  .tagline {
+    margin: 0 auto 34px;
+    max-width: 34rem;
+    font-size: clamp(1.05rem, 2.4vw, 1.25rem);
+    color: var(--muted);
+  }
+
+  .hero-strip { margin-bottom: 36px; }
+
+  .cta { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 22px;
+    border-radius: 999px;
+    font-weight: 600;
+    font-size: .97rem;
+    border: 1px solid transparent;
+    transition: transform .12s ease, box-shadow .2s ease, background .2s ease;
+  }
+  .btn:hover { text-decoration: none; transform: translateY(-1px); }
+
+  .btn-primary {
+    background: var(--cyan);
+    color: #04121a;
+    box-shadow: 0 0 0 1px rgba(34, 211, 238, .5), 0 8px 30px rgba(34, 211, 238, .22);
+  }
+  .btn-primary:hover { background: #67e8f9; }
+
+  .btn-ghost { border-color: #262b33; color: var(--text); background: #0e1116; }
+  .btn-ghost:hover { border-color: #3a424e; }
+
+  .meta { margin-top: 16px; font-size: .85rem; color: #6d7887; }
+
+  /* ---------- sections ---------- */
+
+  section { padding: 64px 0; border-top: 1px solid var(--line); }
+
+  h2 {
+    margin: 0 0 10px;
+    font-size: clamp(1.5rem, 3.5vw, 1.9rem);
+    letter-spacing: -.02em;
+  }
+
+  .lede { margin: 0 0 34px; color: var(--muted); max-width: 46rem; }
+
+  .grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+    gap: 16px;
+  }
+
+  .card {
+    background: var(--bg-raised);
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 22px;
+  }
+
+  .card h3 { margin: 18px 0 6px; font-size: 1rem; letter-spacing: -.01em; }
+  .card p { margin: 0; color: var(--muted); font-size: .92rem; }
+
+  figure { margin: 0; }
+  figure img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+  }
+  figcaption { margin-top: 12px; color: #6d7887; font-size: .85rem; }
+
+  ol.steps { margin: 0; padding-left: 1.2rem; color: var(--muted); }
+  ol.steps li { margin-bottom: 10px; }
+  ol.steps strong { color: var(--text); font-weight: 600; }
+
+  pre {
+    background: #0a0c10;
+    border: 1px solid var(--line);
+    border-radius: var(--radius);
+    padding: 18px;
+    overflow-x: auto;
+    font-size: .86rem;
+    line-height: 1.6;
+    margin: 0 0 20px;
+  }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+  }
+  p code, li code {
+    background: #12161c;
+    border: 1px solid var(--line);
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: .85em;
+  }
+
+  .note {
+    border-left: 2px solid #2b323b;
+    padding-left: 16px;
+    color: var(--muted);
+    font-size: .92rem;
+  }
+
+  footer {
+    border-top: 1px solid var(--line);
+    padding: 44px 0 64px;
+    color: #6d7887;
+    font-size: .88rem;
+  }
+  footer .wrap {
+    display: flex;
+    gap: 18px 24px;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+  }
+  footer nav { display: flex; gap: 18px; flex-wrap: wrap; }
+
+  @media (prefers-reduced-motion: reduce) {
+    html { scroll-behavior: auto; }
+    .strip i { animation: none !important; }
+    .s-working i, .s-idle i { background: #16232b; }
+    .s-working i:first-child { background: var(--cyan); }
+    .s-attention i { background: var(--orange); }
+    .s-failure i { background: var(--red); }
+    .btn { transition: none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="hero">
+  <div class="wrap">
+    <img class="mark" src="logo-inline.png" alt="" width="92" height="92" />
+    <h1>AI Pulse</h1>
+    <p class="tagline">
+      An ambient macOS light strip for AI coding agents. Eight virtual LEDs beside your
+      Dock show, at a glance, whether anything is running, waiting on you, finished, or broken.
+    </p>
+
+    <div class="hero-strip">
+      <span class="strip lg s-working" role="img" aria-label="Eight LEDs animating a cyan comet, the working state">
+        <i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i>
+      </span>
+    </div>
+
+    <div class="cta">
+      <a class="btn btn-primary" href="https://github.com/leog/ai-pulse/releases/latest">Download for macOS</a>
+      <a class="btn btn-ghost" href="https://github.com/leog/ai-pulse">View on GitHub</a>
+    </div>
+    <p class="meta">macOS 14+ &middot; free and open source (MIT) &middot; <span id="latest-version"></span></p>
+  </div>
+</header>
+
+<section id="states">
+  <div class="wrap">
+    <h2>One signal, six states</h2>
+    <p class="lede">
+      No per-model distinction and no counters — one aggregate signal across every
+      agent you have running. Each state is a distinct animation, and each is also
+      distinguishable without relying on color alone.
+    </p>
+
+    <div class="grid">
+      <div class="card">
+        <span class="strip s-working" role="img" aria-label="Cyan comet animation"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <h3>Working</h3>
+        <p>A cyan comet streaks while an agent runs.</p>
+      </div>
+      <div class="card">
+        <span class="strip s-attention" role="img" aria-label="Breathing orange animation"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <h3>Needs you</h3>
+        <p>Breathes orange when an agent waits for input or approval.</p>
+      </div>
+      <div class="card">
+        <span class="strip s-failure" role="img" aria-label="Double-blinking red animation"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <h3>Failed</h3>
+        <p>Double-blinks red when a session breaks.</p>
+      </div>
+      <div class="card">
+        <span class="strip s-success" role="img" aria-label="Solid green LEDs"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <h3>Finished</h3>
+        <p>All eight settle to solid green.</p>
+      </div>
+      <div class="card">
+        <span class="strip s-idle" role="img" aria-label="Slow blue-teal aurora animation"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <h3>Idle</h3>
+        <p>A slow aurora drifts while sessions sit quiet.</p>
+      </div>
+      <div class="card">
+        <span class="strip s-off" role="img" aria-label="Dark LEDs"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></span>
+        <h3>Off</h3>
+        <p>Dark when nothing is connected.</p>
+      </div>
+    </div>
+
+    <p class="note" style="margin-top:28px">
+      Reduce Motion replaces every animation with a static treatment. The original
+      per-agent icon pill is still available under Settings → Appearance → Indicator style.
+    </p>
+  </div>
+</section>
+
+<section id="placement">
+  <div class="wrap">
+    <h2>Lives beside the Dock</h2>
+    <p class="lede">
+      The strip floats in the unused space next to the Dock — visible while you work,
+      out of the way when you don't need it.
+    </p>
+    <figure>
+      <img src="dock-placement.gif" loading="lazy" alt="A macOS desktop with the Dock at the bottom center and AI Pulse animating a cyan comet in the empty space to its right" />
+      <figcaption>
+        AI Pulse is <em>not</em> embedded in the Dock — macOS exposes no public API for Dock
+        accessories. It is a Dock-adjacent, borderless, nonactivating panel positioned from
+        public screen geometry. No private APIs, no Accessibility or Screen Recording
+        permissions, no injection.
+      </figcaption>
+    </figure>
+  </div>
+</section>
+
+<section id="install">
+  <div class="wrap">
+    <h2>Install</h2>
+    <ol class="steps">
+      <li>Download <strong>AI-Pulse-&lt;version&gt;.zip</strong> from the <a href="https://github.com/leog/ai-pulse/releases/latest">latest release</a> and unzip it.</li>
+      <li>Move <strong>AI Pulse.app</strong> to <code>/Applications</code> and launch it.</li>
+      <li>Releases are not yet notarized, so on first launch right-click the app → <strong>Open</strong>. On macOS 15+, also allow it under <strong>System Settings → Privacy &amp; Security → Open Anyway</strong>.</li>
+    </ol>
+    <p class="note" style="margin-top:24px">
+      The <code>aipulse</code> CLI ships inside the bundle at
+      <code>AI Pulse.app/Contents/Helpers/aipulse</code>. Building from source needs macOS 14+
+      and an Xcode 16 / Swift 6 toolchain — see the
+      <a href="https://github.com/leog/ai-pulse#build-test-run">README</a>.
+    </p>
+  </div>
+</section>
+
+<section id="integrations">
+  <div class="wrap">
+    <h2>Wire up your agents</h2>
+    <p class="lede">
+      AI Pulse listens on <code>127.0.0.1:7455</code>. Anything that can make a local HTTP
+      request can drive the strip.
+    </p>
+
+    <div class="grid" style="margin-bottom:32px">
+      <div class="card">
+        <h3 style="margin-top:0">Claude Code</h3>
+        <p>Register <code>aipulse claude-hook</code> in your Claude Code settings and sessions appear on the strip automatically.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">pi</h3>
+        <p>Drop the bundled <code>aipulse-pi.ts</code> extension into <code>~/.pi/agent/extensions/</code> and reload.</p>
+      </div>
+      <div class="card">
+        <h3 style="margin-top:0">Anything else</h3>
+        <p>Push state from any script with the <code>aipulse</code> CLI or the loopback HTTP API.</p>
+      </div>
+    </div>
+
+<pre><code>aipulse agent upsert \
+  --id "claude-code:$PWD:$SESSION_ID" \
+  --name "Claude Code" --provider anthropic \
+  --instance "$(basename "$PWD")" \
+  --state working --message "Implementing Dock placement"
+
+aipulse agent update --id "..." --state waitingForInput --sequence 2
+aipulse agent remove --id "..."
+aipulse agents        # list everything the strip knows</code></pre>
+
+    <p class="note">
+      On launch AI Pulse stores a bearer token in the Keychain and writes
+      <code>~/Library/Application Support/AIPulse/cli.json</code> (mode 0600), so the CLI
+      authenticates without tokens ever appearing in shell commands.
+    </p>
+  </div>
+</section>
+
+<section id="privacy">
+  <div class="wrap">
+    <h2>Privacy</h2>
+    <p class="lede" style="margin-bottom:20px">
+      AI Pulse displays status sent by local agent integrations. It does not read prompts,
+      terminal contents, editor contents, or application windows.
+    </p>
+    <p class="note">
+      The server binds to the loopback interface only, caps request sizes, validates every
+      payload, rejects unsafe URL schemes, and never executes anything it receives.
+    </p>
+  </div>
+</section>
+
+<footer>
+  <div class="wrap">
+    <span>MIT licensed · built by <a href="https://github.com/leog">leog</a></span>
+    <nav>
+      <a href="https://github.com/leog/ai-pulse">GitHub</a>
+      <a href="https://github.com/leog/ai-pulse/issues">Issues</a>
+      <a href="https://github.com/leog/ai-pulse/blob/main/CONTRIBUTING.md">Contributing</a>
+      <a href="https://www.producthunt.com/products/ai-pulse-2">Product Hunt</a>
+    </nav>
+  </div>
+</footer>
+
+<script>
+  fetch('https://api.github.com/repos/leog/ai-pulse/releases/latest')
+    .then(function (r) { return r.ok ? r.json() : null; })
+    .then(function (data) {
+      if (data && data.tag_name) {
+        document.getElementById('latest-version').textContent = 'latest: ' + data.tag_name;
+      }
+    })
+    .catch(function () { /* offline or rate-limited: leave the slot empty */ });
+</script>
+
+</body>
+</html>

@@ -4,6 +4,10 @@
 </h1>
 
 <p align="center">
+  <b><a href="https://aipulse.leog.me">aipulse.leog.me</a></b> — website &amp; download
+</p>
+
+<p align="center">
   <a href="https://www.producthunt.com/products/ai-pulse-2?embed=true&amp;utm_source=badge-featured&amp;utm_medium=badge&amp;utm_campaign=badge-ai-pulse-2" target="_blank" rel="noopener noreferrer"><img alt="AI Pulse - Ambient macOS light strip for AI coding agents | Product Hunt" width="250" height="54" src="https://api.producthunt.com/widgets/embed-image/v1/featured.svg?post_id=1222514&amp;theme=dark&amp;t=1786667843628"></a>
 </p>
 
