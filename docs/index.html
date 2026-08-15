@@ -270,6 +270,38 @@
     font-size: .92rem;
   }
 
+  /* settings: screenshot beside the option list, stacked on narrow screens */
+  .split {
+    display: grid;
+    grid-template-columns: minmax(0, 300px) minmax(0, 1fr);
+    gap: 40px;
+    align-items: start;
+  }
+  .split img {
+    width: 100%;
+    height: auto;
+    display: block;
+    border-radius: var(--radius);
+    border: 1px solid var(--line);
+  }
+  @media (max-width: 720px) {
+    .split { grid-template-columns: 1fr; gap: 28px; }
+    .split figure { max-width: 300px; margin: 0 auto; }
+  }
+
+  dl.options { margin: 0; }
+  dl.options dt {
+    font-weight: 600;
+    margin-top: 22px;
+    letter-spacing: -.01em;
+  }
+  dl.options dt:first-child { margin-top: 0; }
+  dl.options dd {
+    margin: 4px 0 0;
+    color: var(--muted);
+    font-size: .94rem;
+  }
+
   footer {
     border-top: 1px solid var(--line);
     padding: 44px 0 64px;
@@ -364,8 +396,9 @@
     </div>
 
     <p class="note" style="margin-top:28px">
-      Reduce Motion replaces every animation with a static treatment. The original
-      per-agent icon pill is still available under Settings → Appearance → Indicator style.
+      Reduce Motion replaces every animation with a static treatment. A per-agent
+      presentation — one LED per session instead of one aggregate strip — is available
+      under <a href="#settings">Settings → Appearance → Indicator style</a>.
     </p>
   </div>
 </section>
@@ -403,6 +436,67 @@
       and an Xcode 16 / Swift 6 toolchain — see the
       <a href="https://github.com/leog/ai-pulse#build-test-run">README</a>.
     </p>
+  </div>
+</section>
+
+<section id="settings">
+  <div class="wrap">
+    <h2>Settings</h2>
+    <p class="lede">
+      Right-click the pill → <strong>Settings…</strong> to adapt AI Pulse to your setup.
+    </p>
+
+    <div class="split">
+      <figure>
+        <img src="settings.png" loading="lazy" width="809" height="1942" alt="The AI Pulse settings window, showing the Placement, Appearance, Behavior, State priority, Local API, and Privacy sections" />
+      </figure>
+
+      <dl class="options">
+        <dt>Placement</dt>
+        <dd>
+          Which side of the Dock the pill sits on, which display it follows (automatic
+          tracks the Dock's display), the corner it falls back to when there is no room
+          beside the Dock, and whether it follows an auto-hidden Dock off-screen.
+        </dd>
+
+        <dt>Appearance</dt>
+        <dd>
+          <em>Indicator style</em> switches between <strong>Lights</strong> (one aggregate
+          strip for all agents) and <strong>Agent lights</strong> (one LED per session, so
+          every agent's state is visible at once). <em>Pill background</em> picks the
+          capsule: Dark, Translucent, or Transparent — lights floating straight over the
+          wallpaper. The floating pill and the Dock icon toggle independently; the Dock
+          icon carries a numeric badge for agents needing attention and a dot while agents
+          work.
+        </dd>
+
+        <dt>Behavior</dt>
+        <dd>
+          Housekeeping timers: when completed agents leave the pill, when silent working
+          agents are dimmed as stale, and when they are demoted to disconnected. Waiting,
+          approval, and failed states never expire — they stay until resolved or
+          acknowledged.
+        </dd>
+
+        <dt>State priority</dt>
+        <dd>
+          Most important first. With agents in different states, the strip and Dock icon
+          show the highest state present, and per-agent lights sort in this order — which
+          also decides who stays visible when there are more agents than slots. Put
+          <strong>Working</strong> on top if you'd rather see in-progress work than
+          finished runs, or reset to the default.
+        </dd>
+
+        <dt>Local API</dt>
+        <dd>The loopback port integrations publish to — see <a href="#integrations">wiring up your agents</a>.</dd>
+
+        <dt>Privacy</dt>
+        <dd>
+          A reminder of the contract: AI Pulse only renders status events. It never reads
+          prompts, terminals, editors, or windows.
+        </dd>
+      </dl>
+    </div>
   </div>
 </section>
 
