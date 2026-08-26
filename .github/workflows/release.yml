@@ -135,17 +135,26 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
+          # The quoted heredoc keeps backticks literal; sed fills in the
+          # version afterwards.
           gh release create "v$VERSION" "AI-Pulse-$VERSION.zip" \
             --title "AI Pulse $VERSION" \
             --generate-notes \
-            --notes "$(cat <<'NOTES'
-          **Install:** unzip, move `AI Pulse.app` to `/Applications`, and launch.
-          The bundle is universal (Apple Silicon + Intel).
-          These builds are not yet notarized, so on first launch macOS will warn
-          about an unverified developer: right-click the app → **Open** (on
-          macOS 15+, also allow it under **System Settings → Privacy & Security →
-          Open Anyway**). The `aipulse` CLI is embedded at
-          `AI Pulse.app/Contents/Helpers/aipulse`.
+            --notes "$(sed "s/__VERSION__/$VERSION/g" <<'NOTES'
+          **Install** (paste in Terminal):
+
+          ```sh
+          curl -fsSL -o /tmp/aipulse.zip "https://github.com/leog/ai-pulse/releases/download/v__VERSION__/AI-Pulse-__VERSION__.zip" \
+            && rm -rf "/Applications/AI Pulse.app" && ditto -x -k /tmp/aipulse.zip /Applications && open -a "AI Pulse"
+          ```
+
+          These builds are not notarized, so install via the command above —
+          `curl` skips the quarantine flag browsers apply, which is what
+          triggers the macOS "possible malware" dialog on a browser-downloaded
+          copy. If you did download through the browser, clear it with
+          `xattr -dr com.apple.quarantine "/Applications/AI Pulse.app"`.
+          The bundle is universal (Apple Silicon + Intel). The `aipulse` CLI
+          is embedded at `AI Pulse.app/Contents/Helpers/aipulse`.
 
           NOTES
           )"

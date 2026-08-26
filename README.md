@@ -52,11 +52,18 @@ No private APIs, no Accessibility/Screen Recording permissions, no injection.
 
 ## Install
 
-Grab `AI-Pulse-<version>.zip` from the
-[latest release](https://github.com/leog/ai-pulse/releases/latest), unzip,
-move `AI Pulse.app` to `/Applications`, and launch. Releases are not yet
-notarized, so on first launch right-click the app → **Open** (on macOS 15+,
-also allow it under **System Settings → Privacy & Security → Open Anyway**).
+Paste in Terminal:
+
+```sh
+curl -fsSL "$(curl -fsSL https://api.github.com/repos/leog/ai-pulse/releases/latest | grep -om1 'https://[^"]*\.zip')" -o /tmp/aipulse.zip \
+  && rm -rf "/Applications/AI Pulse.app" && ditto -x -k /tmp/aipulse.zip /Applications && open -a "AI Pulse"
+```
+
+Releases are not yet notarized, so install via `curl`: it skips the
+quarantine flag browsers apply, which is what makes macOS show the
+"possible malware" dialog on a browser-downloaded copy. If you did download
+through the browser, clear it with
+`xattr -dr com.apple.quarantine "/Applications/AI Pulse.app"`.
 The `aipulse` CLI ships inside the bundle at
 `AI Pulse.app/Contents/Helpers/aipulse`.
 
